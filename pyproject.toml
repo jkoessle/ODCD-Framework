@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "supervised-cd"
+version = "0.1.0"
+description = "Environment for a supervised concept drift detection approach."
+authors = ["jkoessle <mail@jonathan-koessler.de>"]
+readme = "README.md"
+packages = [{include = "supervised_cd"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+tensorflow = "^2.11.0"
+numpy = "^1.24.1"
+pm4py = "^2.5.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
