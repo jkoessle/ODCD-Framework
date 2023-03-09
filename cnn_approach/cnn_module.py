@@ -92,7 +92,7 @@ def cnn_model(model_selection, targetsize, pretrained, fc_layer, n_classes,
 
     # select model
     if pretrained:
-        model_arc = pretrained_cnn(model=model_selection, input_tensor=inputs,
+        model_arc = pretrained_cnn(model=model_selection, 
                                    input_shape=input_shape, pretrained=pretrained)
         model_arc = model_arc(inputs, training=False)
     else:
