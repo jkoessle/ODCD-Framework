@@ -129,4 +129,8 @@ dmypy.json
 .pyre/
 
 # Event logs (for now)
+logs/*
 *.xes
+
+# Intermediate results
+*png
