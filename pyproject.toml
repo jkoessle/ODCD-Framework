@@ -17,6 +17,8 @@ scipy = "^1.10.1"
 keras = "^2.11.0"
 polars = "^0.16.11"
 pyarrow = "^11.0.0"
+autopep8 = "^2.0.2"
+deprecated = "^1.2.13"
 
 
 [build-system]

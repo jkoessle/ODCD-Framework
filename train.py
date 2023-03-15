@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     train_ds, val_ds = tf.keras.utils.image_dataset_from_directory(
         DEFAULT_DATA_DIR, subset="both", image_size=size, 
-        seed=42, validation_split=0.8, color_mode="rgb")
+        seed=42, validation_split=0.2, color_mode="rgb")
 
     # train_ds, val_ds = np.split(data, [int(0.8 * len(data))])
 

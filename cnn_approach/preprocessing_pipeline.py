@@ -1,12 +1,16 @@
 import numpy as np
 import pandas as pd
-import polars as pl
+# import polars as pl
 import utils.utilities as utils
+# import pm4py
 from pm4py import discover_dfg_typed
 from numpy import linalg as LA
 from scipy import spatial
 from scipy.stats import wasserstein_distance
-
+# from pm4py.algo.filtering.log.attributes import attributes_filter
+from pm4py.objects.conversion.log import converter as log_converter
+from pm4py.objects.log.util import dataframe_utils
+from utils.sanity_checks import check_dfg_graph_freq
 
 # TODO change dfg to trace based instead of event
 # 1. number of traces or number of timestamps -> get equivalent timespaces
@@ -24,35 +28,42 @@ from scipy.stats import wasserstein_distance
 # TODO flip y-axis
 
 
-def preprocessing_pipeline(n_windows: int):
+def preprocessing_pipeline(n_windows=100, mode="time"):
     # event_log = pm.read_xes(event_log_path)
 
     log_files = utils.get_event_log_paths()
-    logs_info = utils.get_collection_information()
+    # logs_info = utils.get_collection_information()
 
     for name, path in log_files.items():
 
         ######
         # TODO outsource to function
-        event_log_name = "event_" + name.split(".")[0]
-        log_info = logs_info.filter(pl.col("Event Log") == event_log_name)
-        drift_type = log_info["Drift Type"][0]
+        # event_log_name = "event_" + name.split(".")[0]
+        # log_info = logs_info.filter(pl.col("Event Log") == event_log_name)
+        # drift_type = log_info["Drift Type"][0]
 
-        log_filter = logs_info.filter(pl.col("Drift Type") == drift_type)
-        log_filter = log_filter.insert_at_idx(0, pl.Series("idx", [i for i in range(
-            1, len(log_filter) + 1)])).filter(pl.col("Event Log") == event_log_name)
-        log_number = log_filter["idx"][0]
+        # log_filter = logs_info.filter(pl.col("Drift Type") == drift_type)
+        # log_filter = log_filter.insert_at_idx(0, pl.Series("idx", [i for i in range(
+        #     1, len(log_filter) + 1)])).filter(pl.col("Event Log") == event_log_name)
+        # log_number = log_filter["idx"][0]
         ######
 
-        event_log = utils.read_event_log(path=path, name=name)
+        event_log = utils.import_event_log(path=path, name=name)
 
-        windowed_dfg_matrices = log_to_windowed_dfg_count(event_log, n_windows)
+        # TODO outsource to function
+        noise_info, drift_info = utils.get_log_information(event_log)
+        log_number = drift_info["log_id"]
+        drift_type = drift_info["drift_type"]
+
+        # if the log contains incomplete traces, the log is filtered
+        filtered_log = utils.filter_complete_events(event_log)
+
+        windowed_dfg_matrices = log_to_windowed_dfg_count(
+            filtered_log, n_windows)
 
         sim_matrix = similarity_calculation(windowed_dfg_matrices)
 
         utils.matrix_to_img(sim_matrix, log_number, drift_type, mode="color")
-
-    # return sim_matrices
 
 
 def log_to_windowed_dfg_timestamp():
@@ -61,22 +72,33 @@ def log_to_windowed_dfg_timestamp():
 
 def log_to_windowed_dfg_count(event_log, n_windows):
 
-    act_names = np.unique(event_log["concept:name"])
+    event_log_df = log_converter.apply(
+        event_log, variant=log_converter.Variants.TO_DATA_FRAME)
+    event_log_df = dataframe_utils.convert_timestamp_columns_in_df(
+        event_log_df)
 
-    # print("Loglenth: ", len(event_log))
+    act_names = np.unique(event_log_df["concept:name"])
+
+    window_size = len(event_log) // n_windows
 
     freq_count = 0
-
-    window_size = len(event_log) // n_windows + 1
     dfg_graphs = []
-    # start_act = []
-    # end_act = []
+
     left_boundary = 0
     right_boundary = window_size
-    for _ in range(1, n_windows + 1):
+
+    # start_act = []
+    # end_act = []
+    for i in range(1, n_windows + 1):
         dfg_matrix_df = pd.DataFrame(0, columns=act_names, index=act_names)
 
-        log_window = event_log[left_boundary:right_boundary]
+        if i < n_windows:
+            log_window = event_log_df.loc[(event_log_df["case:concept:name"].astype(
+                int) >= left_boundary) & (event_log_df["case:concept:name"].astype(int)
+                                          < right_boundary)]
+        else:
+            log_window = event_log_df.loc[(event_log_df["case:concept:name"].astype(
+                int) >= left_boundary)]
 
         graph, sa, ea = discover_dfg_typed(log_window)
 
@@ -92,8 +114,14 @@ def log_to_windowed_dfg_count(event_log, n_windows):
 
         left_boundary = right_boundary
         right_boundary += window_size
+        
+    total_freq = check_dfg_graph_freq(event_log_df)
+        
+    assert total_freq == freq_count, "Missing directly follow relations"
 
-    # print("Freq_count: ", freq_count)
+    # print(total_freq == freq_count)
+    # print("Total freq", total_freq)
+    # print("Freq count", freq_count)
 
     return np.array(dfg_graphs)  # , np.array(start_act), np.array(end_act)
 
