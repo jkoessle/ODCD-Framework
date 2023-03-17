@@ -1,5 +1,6 @@
-DEFAULT_DATA_DIR = "data"
-DEFAULT_LOG_DIR = "."
+DEFAULT_TRAIN_DATA_DIR = "data/train"
+DEFAULT_EVAL_DATA_DIR = "data/eval"
+DEFAULT_LOG_DIR = "logs"
 DEFAULT_OUTPUT_DIR = ""
 N_WINDOWS = 100
 MODE = "time"
