@@ -2,7 +2,9 @@ import tensorflow as tf
 from cnn_approach.preprocessing_pipeline import preprocessing_pipeline
 from cnn_approach.cnn_module import cnn_model
 import utils.config as config
-
+import datetime
+# import tensorflow_model_analysis as tfma
+# from google.protobuf import text_format
 
 if __name__ == "__main__":
 
@@ -15,22 +17,39 @@ if __name__ == "__main__":
         config.DEFAULT_TRAIN_DATA_DIR, subset="both", image_size=size,
         seed=42, validation_split=0.2, color_mode="rgb")
 
-    # train_ds, val_ds = np.split(data, [int(0.8 * len(data))])
+    date = datetime.datetime.now("%Y%m%d-%H%M%S")
 
-    # size = (150, 150)
+    checkpoints_dir = "checkpoints/" + date
+    checkpoints = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoints_dir,
+                                                     monitor="val_acc",
+                                                     save_best_only=True)
 
-    # train_ds = train_ds.map(lambda x, y: (tf.image.resize(x, size), y))
-    # val_ds = val_ds.map(lambda x, y: (tf.image.resize(x, size), y))
+    early_stopping = tf.keras.callbacks.EarlyStopping(monitor="val_acc", min_delta=0.01,
+                                                      patience=7)
 
-    # batch_size = 32
-
-    # train_ds = train_ds.cache().batch(batch_size).prefetch(buffer_size=10)
-    # val_ds = val_ds.cache().batch(batch_size).prefetch(buffer_size=10)
+    log_dir = "tensorboard_logs/" + date
+    tf_board = tf.keras.callbacks.TensorBoard(
+        log_dir=log_dir, histogram_freq=1)
 
     model = cnn_model(model_selection=config.MODEL_SELECTION,
-                      targetsize=config.TARGETSIZE, pretrained=config.PRETRAINED, 
+                      targetsize=config.TARGETSIZE, pretrained=config.PRETRAINED,
                       fc_layer=config.FC_LAYER, n_classes=config.N_CLASSES,
-                      dropout=config.DROPOUT, agg_layer=config.AGG_LAYER, 
+                      dropout=config.DROPOUT, agg_layer=config.AGG_LAYER,
                       l_r=config.L_R, optimizer=config.OPTIMIZER)
 
-    model.fit(train_ds, epochs=config.EPOCHS, validation_data=val_ds)
+    model.fit(train_ds, epochs=config.EPOCHS, validation_data=val_ds,
+              callbacks=[tf_board, early_stopping, checkpoints])
+    
+
+    # metrics_specs = text_format.Parse("""
+    # metrics_specs {
+    #     metrics { class_name: "ExampleCount" }
+    #     metrics { class_name: "SparseCategoricalCrossentropy" }
+    #     metrics { class_name: "SparseCategoricalAccuracy" }
+    #     metrics { class_name: "Precision" config: '"top_k": 1' }
+    #     metrics { class_name: "Precision" config: '"top_k": 3' }
+    #     metrics { class_name: "Recall" config: '"top_k": 1' }
+    #     metrics { class_name: "Recall" config: '"top_k": 3' }
+    #     metrics { class_name: "MultiClassConfusionMatrixPlot" }
+    # }
+    # """, tfma.EvalConfig()).metrics_specs
