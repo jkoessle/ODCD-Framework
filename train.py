@@ -3,6 +3,7 @@ from cnn_approach.preprocessing_pipeline import preprocessing_pipeline
 from cnn_approach.cnn_module import cnn_model
 import utils.config as config
 import datetime
+import pytz
 # import tensorflow_model_analysis as tfma
 # from google.protobuf import text_format
 
@@ -17,7 +18,8 @@ if __name__ == "__main__":
         config.DEFAULT_TRAIN_DATA_DIR, subset="both", image_size=size,
         seed=42, validation_split=0.2, color_mode="rgb")
 
-    date = datetime.datetime.now("%Y%m%d-%H%M%S")
+    europe = pytz.timezone("Europe")
+    date = datetime.datetime.now(europe).strftime("%Y%m%d-%H%M%S")
 
     checkpoints_dir = "checkpoints/" + date
     checkpoints = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoints_dir,
