@@ -25,7 +25,6 @@ from tqdm import tqdm
 
 # TODO flip y-axis
 
-
 def preprocessing_pipeline(n_windows=100, p_mode="train", window_mode="count"):
 
     # get all paths and file names of event logs
@@ -34,52 +33,40 @@ def preprocessing_pipeline(n_windows=100, p_mode="train", window_mode="count"):
     # incrementally store number of log based on drift type - for file naming purposes
     log_numbers = defaultdict(lambda: 0)
 
-    synthetic_log = True
-
-    if p_mode == "eval":
-        synthetic_log = False
-
     # iterate through log files
     for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs"
                            , unit="Event Log"):
 
-        ######
-        # TODO outsource to function
-        # event_log_name = "event_" + name.split(".")[0]
-        # log_info = logs_info.filter(pl.col("Event Log") == event_log_name)
-        # drift_type = log_info["Drift Type"][0]
-
-        # log_filter = logs_info.filter(pl.col("Drift Type") == drift_type)
-        # log_filter = log_filter.insert_at_idx(0, pl.Series("idx", [i for i in range(
-        #     1, len(log_filter) + 1)])).filter(pl.col("Event Log") == event_log_name)
-        # log_number = log_filter["idx"][0]
-        ######
-
+        # load event log
         event_log = utils.import_event_log(path=path, name=name)
 
         # TODO outsource to function - save info as csv/dataframe
         if p_mode == "train":
-            noise_info, drift_info = utils.get_nested_log_information(event_log)
+            noise_info, drift_info = utils.get_nested_log_information(
+                event_log)
             # log_number = drift_info["log_id"]
             drift_type = drift_info["drift_type"]
         elif p_mode == "eval":
-            drift_type = "eval"    
-        
+            drift_type = "eval"
 
+        # increment log number
         log_numbers[drift_type] += 1
 
         # if the log contains incomplete traces, the log is filtered
         filtered_log = utils.filter_complete_events(event_log)
 
+        # get windowed event log
         if window_mode == "time":
             # TODO implement log_to_windowed_dfg_timestamp
             pass
         elif window_mode == "count":
             windowed_dfg_matrices = log_to_windowed_dfg_count(
-                filtered_log, n_windows, synthetic_log)
+                filtered_log, n_windows)
 
+        # get similarity matrix
         sim_matrix = similarity_calculation(windowed_dfg_matrices)
 
+        # save matrix as image
         utils.matrix_to_img(matrix=sim_matrix, number=log_numbers[drift_type],
                             drift_type=drift_type, mode="color")
 
@@ -88,76 +75,56 @@ def log_to_windowed_dfg_timestamp():
     pass
 
 
-def log_to_windowed_dfg_count(event_log, n_windows, synthetic_log):
+def log_to_windowed_dfg_count(event_log, n_windows):
 
+    # convert event log to pandas dataframe
     event_log_df = log_converter.apply(
         event_log, variant=log_converter.Variants.TO_DATA_FRAME)
     event_log_df = dataframe_utils.convert_timestamp_columns_in_df(
         event_log_df)
-    
-    # event_log_df["case:concept:name"] = event_log_df["case:concept:name"].apply(
-    #     lambda x: ''.join(list(filter(str.isdigit, x))))
 
+    # get unique event names
     act_names = np.unique(event_log_df["concept:name"])
-    
-    unique_traces = pd.unique(event_log_df["case:concept:name"])
-    
-    
-    # 
-    # unique_traces = [''.join(list(filter(str.isdigit, i))) for i in unique_traces]
 
+    # get unique trace names
+    # hint: pandas unique does not sort the result, therefore it is faster and the
+    # chronological order is maintained
+    unique_traces = pd.unique(event_log_df["case:concept:name"])
+
+    # get window size based on number of windows and event log size
+    # event log size is equal to number of traces
     window_size = len(event_log) // n_windows
 
+    # initialize helper variables
     freq_count = 0
-    dfg_graphs = []
-
     left_boundary = 0
     right_boundary = window_size
-
+    dfg_graphs = []
     # start_act = []
     # end_act = []
+
+    # iterate through windows
     for i in range(1, n_windows + 1):
         dfg_matrix_df = pd.DataFrame(0, columns=act_names, index=act_names)
 
-        
+        # get all trace names that are in selected window, traces are sorted by
+        # timestamp
+        if i < n_windows:
 
-        if synthetic_log:
-            if i < n_windows:
-                log_window = event_log_df.loc[(event_log_df["case:concept:name"].astype(
-                    int) >= left_boundary) & (event_log_df["case:concept:name"]
-                                              .astype(int)
-                                              < right_boundary)]
-            else:
-                log_window = event_log_df.loc[(event_log_df["case:concept:name"].astype(
-                    int) >= left_boundary)]
+            w_unique_traces = unique_traces[left_boundary:right_boundary]
 
-        elif not synthetic_log:
-            
-            if i < n_windows:
-            
-                w_unique_traces = unique_traces[left_boundary:right_boundary]
-                
-            else:
-                w_unique_traces = unique_traces[left_boundary:]
-            
-            log_window = event_log_df[event_log_df["case:concept:name"]
-                                      .isin(w_unique_traces)]
-            
-            # log_window = event_log_df.query('case:concept:name in @w_unique_traces')
-            
-            # if i < n_windows:
-            #     log_window = event_log_df.loc[(event_log_df["case:concept:name"]
-            # .astype(
-            #         int) >= min(w_unique_traces)) & (event_log_df["case:concept:name"]
-            #                                          .astype(int)
-            #                                          <= max(w_unique_traces))]
-            # else:
-            #     log_window = event_log_df.loc[(event_log_df["case:concept:name"]
-            # .astype(
-            #         int) >= min(w_unique_traces))]
+        # at last window fill until the end of the list
+        else:
+            w_unique_traces = unique_traces[left_boundary:]
 
+        # search all events for given traces
+        log_window = event_log_df[event_log_df["case:concept:name"]
+                                  .isin(w_unique_traces)]
+
+        # get dfg graph for window
         graph, sa, ea = discover_dfg_typed(log_window)
 
+        # transform dfg graph into dfg matrix
         for relation, freq in graph.items():
             rel_a, rel_b = relation
             dfg_matrix_df.at[rel_a, rel_b] = freq
@@ -171,13 +138,14 @@ def log_to_windowed_dfg_count(event_log, n_windows, synthetic_log):
         left_boundary = right_boundary
         right_boundary += window_size
 
+    # compare dfg frequencies of all windows with dfg frequencies of complete log
+    # ensures that there are no missing relations
     total_freq = check_dfg_graph_freq(event_log_df)
-
-    assert total_freq == freq_count, "Missing directly follow relations"
-
-    # print(total_freq == freq_count)
-    # print("Total freq", total_freq)
-    # print("Freq count", freq_count)
+    assert total_freq == freq_count, (
+        "Missing directly follow relations.\n"
+        f"Number of relations in whole event log: {total_freq}.\n"
+        f"Number of relations in all windows: {freq_count}"
+    )
 
     return np.array(dfg_graphs)  # , np.array(start_act), np.array(end_act)
 
@@ -188,25 +156,25 @@ def similarity_calculation(windowed_dfg):
     n = len(windowed_dfg)
     sim_matrix = np.zeros((n, n))
 
+    # calculate similarity measure between all elements of dfg matrix
     for i, matrix_i in enumerate(windowed_dfg):
         for j, matrix_j in enumerate(windowed_dfg):
             sim_matrix[i, j] = calc_distance_norm(matrix_i, matrix_j)
-
+    
     # check diagonal of similarity matrix
     assert np.sum(np.diagonal(sim_matrix)
                   ) == 0, "The diagonal of the similarity matrix must be zero."
 
+    # normalize similarity matrix
     norm_sim_matrix = 1 - sim_matrix / np.amax(sim_matrix)
 
+    # transform matrix values to color integers
     img_matrix = np.uint8(norm_sim_matrix * 255)
-    # print(img_matrix.shape)
 
     # stacked_img = np.stack((img_matrix,)*3, axis=-1)
-
-    # print(stacked_img.shape)
-
     # data = Image.fromarray(img_matrix)
     # data.show()
+    # from matplotlib import pyplot as plt
     # plt.imshow(img_matrix, interpolation='nearest')
     # plt.show()
 

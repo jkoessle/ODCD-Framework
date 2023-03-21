@@ -131,6 +131,10 @@ dmypy.json
 # Event logs (for now)
 logs/*
 *.xes
+*.csv
 
 # Intermediate results
 *png
+
+# misc
+test.py
