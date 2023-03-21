@@ -65,9 +65,15 @@ def get_nested_log_information(log: EventLog) -> tuple[dict, dict]:
     Returns:
         tuple[dict, dict]: two dicts containing information on drift and noise
     """
-    drift_info = log.attributes["drift:info"]["children"]
-    noise_info = log.attributes["noise:info"]["children"]
-
+    
+    #TODO: workaround - CDLG currently only supports noise info for logs without drift
+    try:
+        drift_info = log.attributes["drift:info"]["children"]
+        noise_info = log.attributes["noise:info"]["children"]
+    except Exception:
+        drift_info = {"drift_type":"no_drift"}
+        noise_info = log.attributes["noise:info"]["children"]
+        
     return noise_info, drift_info
 
 
