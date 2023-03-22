@@ -108,7 +108,7 @@ def matrix_to_img(matrix, number, drift_type, mode="color"):
     elif drift_type == "sudden":
         im.save(os.path.join(config.DEFAULT_TRAIN_DATA_DIR,
                 "sudden", f"sudden_{number}.png"))
-    elif drift_type == "none":
+    elif drift_type == "no_drift":
         im.save(os.path.join(config.DEFAULT_TRAIN_DATA_DIR,
                 "no_drift", f"no_drift_{number}.png"))
     elif drift_type == "eval":

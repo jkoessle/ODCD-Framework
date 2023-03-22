@@ -18,18 +18,19 @@ if __name__ == "__main__":
         config.DEFAULT_TRAIN_DATA_DIR, subset="both", image_size=size,
         seed=42, validation_split=0.2, color_mode="rgb")
 
-    europe = pytz.timezone("Europe")
+    europe = pytz.timezone("Europe/Berlin")
     date = datetime.datetime.now(europe).strftime("%Y%m%d-%H%M%S")
 
     checkpoints_dir = "checkpoints/" + date
     checkpoints = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoints_dir,
-                                                     monitor="val_acc",
+                                                     monitor="val_accuracy",
                                                      save_best_only=True)
 
-    early_stopping = tf.keras.callbacks.EarlyStopping(monitor="val_acc", min_delta=0.01,
+    early_stopping = tf.keras.callbacks.EarlyStopping(monitor="val_accuracy",
+                                                      min_delta=0.01,
                                                       patience=7)
 
-    log_dir = "tensorboard_logs/" + date
+    log_dir = "tensorboard_logs/tb_log_" + date
     tf_board = tf.keras.callbacks.TensorBoard(
         log_dir=log_dir, histogram_freq=1)
 
@@ -41,7 +42,6 @@ if __name__ == "__main__":
 
     model.fit(train_ds, epochs=config.EPOCHS, validation_data=val_ds,
               callbacks=[tf_board, early_stopping, checkpoints])
-    
 
     # metrics_specs = text_format.Parse("""
     # metrics_specs {
