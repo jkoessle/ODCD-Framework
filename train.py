@@ -2,8 +2,7 @@ import tensorflow as tf
 from cnn_approach.preprocessing_pipeline import preprocessing_pipeline
 from cnn_approach.cnn_module import cnn_model
 import utils.config as config
-import datetime
-import pytz
+import utils.utilities as utils
 # import tensorflow_model_analysis as tfma
 # from google.protobuf import text_format
 
@@ -17,9 +16,8 @@ if __name__ == "__main__":
     train_ds, val_ds = tf.keras.utils.image_dataset_from_directory(
         config.DEFAULT_TRAIN_DATA_DIR, subset="both", image_size=size,
         seed=42, validation_split=0.2, color_mode="rgb")
-
-    europe = pytz.timezone("Europe/Berlin")
-    date = datetime.datetime.now(europe).strftime("%Y%m%d-%H%M%S")
+    
+    date = utils.get_timestamp()
 
     checkpoints_dir = "checkpoints/" + date
     checkpoints = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoints_dir,
@@ -41,7 +39,9 @@ if __name__ == "__main__":
                       l_r=config.L_R, optimizer=config.OPTIMIZER)
 
     model.fit(train_ds, epochs=config.EPOCHS, validation_data=val_ds,
-              callbacks=[tf_board, early_stopping, checkpoints])
+              callbacks=[tf_board, early_stopping])
+    
+    model.save(f"{config.MODEL_SELECTION}_{date}.h5")
 
     # metrics_specs = text_format.Parse("""
     # metrics_specs {

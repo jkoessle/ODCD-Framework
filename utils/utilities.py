@@ -9,6 +9,8 @@ from pm4py.objects.log.importer.xes import importer as xes_importer
 from pm4py.objects.log.obj import EventLog
 from pm4py.algo.filtering.log.attributes import attributes_filter
 from deprecated import deprecated
+import datetime
+import pytz
 
 
 def get_event_log_paths():
@@ -25,7 +27,7 @@ def get_event_log_paths():
 
 def import_event_log(path, name):
     variant = xes_importer.Variants.ITERPARSE
-    parameters = {variant.value.Parameters.TIMESTAMP_SORT: True, 
+    parameters = {variant.value.Parameters.TIMESTAMP_SORT: True,
                   variant.value.Parameters.SHOW_PROGRESS_BAR: False}
     event_log = xes_importer.apply(os.path.join(
         path, name), variant=variant, parameters=parameters)
@@ -47,8 +49,8 @@ def filter_complete_events(log: EventLog):
             attributes_filter.Parameters.POSITIVE: True})
     except Exception:
         filtered_log = log
-    
-    return filtered_log    
+
+    return filtered_log
 
 
 def export_nested_log_information(log_info):
@@ -65,15 +67,15 @@ def get_nested_log_information(log: EventLog) -> tuple[dict, dict]:
     Returns:
         tuple[dict, dict]: two dicts containing information on drift and noise
     """
-    
+
     #TODO: workaround - CDLG currently only supports noise info for logs without drift
     try:
         drift_info = log.attributes["drift:info"]["children"]
         noise_info = log.attributes["noise:info"]["children"]
     except Exception:
-        drift_info = {"drift_type":"no_drift"}
+        drift_info = {"drift_type": "no_drift"}
         noise_info = log.attributes["noise:info"]["children"]
-        
+
     return noise_info, drift_info
 
 
@@ -89,7 +91,7 @@ def get_collection_information() -> pl.DataFrame:
     return pl.read_csv(path)
 
 
-def matrix_to_img(matrix, number, drift_type, mode="color"):
+def matrix_to_img(matrix, number, drift_type, exp_path, mode="color"):
 
     if mode == "color":
         # Get the color map by name:
@@ -102,15 +104,43 @@ def matrix_to_img(matrix, number, drift_type, mode="color"):
     elif mode == "gray":
         im = Image.fromarray(matrix).convert("RGB")
 
+    # save image with specified drift type
     if drift_type == "gradual":
-        im.save(os.path.join(config.DEFAULT_TRAIN_DATA_DIR,
+        im.save(os.path.join(exp_path,
                 "gradual", f"gradual_{number}.png"))
     elif drift_type == "sudden":
-        im.save(os.path.join(config.DEFAULT_TRAIN_DATA_DIR,
+        im.save(os.path.join(exp_path,
                 "sudden", f"sudden_{number}.png"))
+    elif drift_type == "incremental":
+        im.save(os.path.join(exp_path,
+                "incremental", f"incremental_{number}.png"))
+    elif drift_type == "recurrent":
+        im.save(os.path.join(exp_path,
+                "recurrent", f"recurrent_{number}.png"))
     elif drift_type == "no_drift":
-        im.save(os.path.join(config.DEFAULT_TRAIN_DATA_DIR,
+        im.save(os.path.join(exp_path,
                 "no_drift", f"no_drift_{number}.png"))
     elif drift_type == "eval":
-        im.save(os.path.join(config.DEFAULT_EVAL_DATA_DIR,
-                f"eval_{number}.png"))
+        im.save(os.path.join(exp_path,
+                "eval", f"eval_{number}.png"))
+
+
+def get_timestamp():
+    europe = pytz.timezone("Europe/Berlin")
+    timestamp = datetime.datetime.now(europe).strftime("%Y%m%d-%H%M%S")
+    return timestamp
+
+
+def create_experiment():
+
+    timestamp = get_timestamp()
+
+    exp_path = os.path.join(config.DEFAULT_DATA_DIR, f"experiment_{timestamp}")
+    cwd = os.getcwd()
+
+    for drift in config.DRIFT_TYPES:
+        path = os.path.join(cwd, exp_path, drift)
+        os.makedirs(path)
+
+    print(f"Experiment created at {exp_path}")
+    return exp_path

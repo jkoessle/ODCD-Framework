@@ -1,5 +1,4 @@
-DEFAULT_TRAIN_DATA_DIR = "data/train"
-DEFAULT_EVAL_DATA_DIR = "data/eval"
+DEFAULT_DATA_DIR = "data"
 DEFAULT_LOG_DIR = "logs"
 DEFAULT_OUTPUT_DIR = ""
 N_WINDOWS = 100
@@ -23,3 +22,4 @@ OPTIMIZER = "adam"
 
 EPOCHS = 200
 
+DRIFT_TYPES = ["no_drift","gradual","sudden","incremental","recurrent"]

@@ -13,6 +13,7 @@ from pm4py.objects.log.util import dataframe_utils
 from utils.sanity_checks import check_dfg_graph_freq
 from collections import defaultdict
 from tqdm import tqdm
+# from scipy import sparse
 
 # TODO change dfg to trace based instead of event
 # 1. number of traces or number of timestamps -> get equivalent timespaces
@@ -25,7 +26,10 @@ from tqdm import tqdm
 
 # TODO flip y-axis
 
-def preprocessing_pipeline(n_windows=100, p_mode="train", window_mode="count"):
+
+def preprocessing_pipeline(n_windows=100, p_mode="train"):
+    # create experiment folder structure
+    exp_path = utils.create_experiment()
 
     # get all paths and file names of event logs
     log_files = utils.get_event_log_paths()
@@ -34,8 +38,8 @@ def preprocessing_pipeline(n_windows=100, p_mode="train", window_mode="count"):
     log_numbers = defaultdict(lambda: 0)
 
     # iterate through log files
-    for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs"
-                           , unit="Event Log"):
+    for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs", 
+                           unit="Event Log"):
 
         # load event log
         event_log = utils.import_event_log(path=path, name=name)
@@ -55,24 +59,15 @@ def preprocessing_pipeline(n_windows=100, p_mode="train", window_mode="count"):
         # if the log contains incomplete traces, the log is filtered
         filtered_log = utils.filter_complete_events(event_log)
 
-        # get windowed event log
-        if window_mode == "time":
-            # TODO implement log_to_windowed_dfg_timestamp
-            pass
-        elif window_mode == "count":
-            windowed_dfg_matrices = log_to_windowed_dfg_count(
-                filtered_log, n_windows)
+        windowed_dfg_matrices = log_to_windowed_dfg_count(
+            filtered_log, n_windows)
 
         # get similarity matrix
         sim_matrix = similarity_calculation(windowed_dfg_matrices)
 
         # save matrix as image
         utils.matrix_to_img(matrix=sim_matrix, number=log_numbers[drift_type],
-                            drift_type=drift_type, mode="color")
-
-
-def log_to_windowed_dfg_timestamp():
-    pass
+                            drift_type=drift_type, exp_path=exp_path, mode="color")
 
 
 def log_to_windowed_dfg_count(event_log, n_windows):
@@ -85,6 +80,7 @@ def log_to_windowed_dfg_count(event_log, n_windows):
 
     # get unique event names
     act_names = np.unique(event_log_df["concept:name"])
+    # idx_names = np.arange(len(act_names))
 
     # get unique trace names
     # hint: pandas unique does not sort the result, therefore it is faster and the
@@ -159,8 +155,13 @@ def similarity_calculation(windowed_dfg):
     # calculate similarity measure between all elements of dfg matrix
     for i, matrix_i in enumerate(windowed_dfg):
         for j, matrix_j in enumerate(windowed_dfg):
-            sim_matrix[i, j] = calc_distance_norm(matrix_i, matrix_j)
-    
+            if (i == j) or (sim_matrix[i, j] != 0):
+                continue
+            else:
+                sim_matrix[i, j] = calc_distance_norm(matrix_i, matrix_j)
+                sim_matrix[j, i] = sim_matrix[i, j]
+            # sim_matrix[i, j] = calc_distance_norm(matrix_i, matrix_j)
+
     # check diagonal of similarity matrix
     assert np.sum(np.diagonal(sim_matrix)
                   ) == 0, "The diagonal of the similarity matrix must be zero."
