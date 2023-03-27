@@ -9,12 +9,12 @@ import utils.utilities as utils
 if __name__ == "__main__":
 
     data = preprocessing_pipeline(
-        config.DEFAULT_TRAIN_DATA_DIR, config.N_WINDOWS)
+        config.N_WINDOWS, p_mode="train")
 
     size = (150, 150)
 
     train_ds, val_ds = tf.keras.utils.image_dataset_from_directory(
-        config.DEFAULT_TRAIN_DATA_DIR, subset="both", image_size=size,
+        config.DEFAULT_DATA_DIR, subset="both", image_size=size,
         seed=42, validation_split=0.2, color_mode="rgb")
     
     date = utils.get_timestamp()

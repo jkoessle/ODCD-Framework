@@ -114,9 +114,9 @@ def matrix_to_img(matrix, number, drift_type, exp_path, mode="color"):
     elif drift_type == "incremental":
         im.save(os.path.join(exp_path,
                 "incremental", f"incremental_{number}.png"))
-    elif drift_type == "recurrent":
+    elif drift_type == "recurring":
         im.save(os.path.join(exp_path,
-                "recurrent", f"recurrent_{number}.png"))
+                "recurring", f"recurring_{number}.png"))
     elif drift_type == "no_drift":
         im.save(os.path.join(exp_path,
                 "no_drift", f"no_drift_{number}.png"))

@@ -22,4 +22,4 @@ OPTIMIZER = "adam"
 
 EPOCHS = 200
 
-DRIFT_TYPES = ["no_drift","gradual","sudden","incremental","recurrent"]
+DRIFT_TYPES = ["no_drift","gradual","sudden","incremental","recurring"]

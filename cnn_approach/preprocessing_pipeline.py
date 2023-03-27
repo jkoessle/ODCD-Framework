@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 # import polars as pl
 import utils.utilities as utils
+import utils.config as cfg
 # import pm4py
 from pm4py import discover_dfg_typed
 from numpy import linalg as LA
@@ -29,7 +30,7 @@ from tqdm import tqdm
 
 def preprocessing_pipeline(n_windows=100, p_mode="train"):
     # create experiment folder structure
-    exp_path = utils.create_experiment()
+    cfg.DEFAULT_DATA_DIR = utils.create_experiment()
 
     # get all paths and file names of event logs
     log_files = utils.get_event_log_paths()
@@ -38,7 +39,7 @@ def preprocessing_pipeline(n_windows=100, p_mode="train"):
     log_numbers = defaultdict(lambda: 0)
 
     # iterate through log files
-    for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs", 
+    for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs",
                            unit="Event Log"):
 
         # load event log
@@ -67,7 +68,8 @@ def preprocessing_pipeline(n_windows=100, p_mode="train"):
 
         # save matrix as image
         utils.matrix_to_img(matrix=sim_matrix, number=log_numbers[drift_type],
-                            drift_type=drift_type, exp_path=exp_path, mode="color")
+                            drift_type=drift_type, exp_path=cfg.DEFAULT_DATA_DIR,
+                            mode="color")
 
 
 def log_to_windowed_dfg_count(event_log, n_windows):
