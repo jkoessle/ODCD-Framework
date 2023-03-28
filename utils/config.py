@@ -1,9 +1,12 @@
 DEFAULT_DATA_DIR = "data"
 DEFAULT_LOG_DIR = "logs"
 INTERIM_DATA_DIR = "data\\train"
-DEFAULT_OUTPUT_DIR = ""
+DEFAULT_OUTPUT_DIR = "output"
+MODEL_PATH = ""
 N_WINDOWS = 100
 MODE = "time"
+
+DRIFT_TYPES = ["no_drift","gradual","sudden","incremental","recurring"]
 
 # resnet, inception, inc_res, resnet_rs, xception
 MODEL_SELECTION = "resnet"
@@ -12,7 +15,7 @@ TARGETSIZE = 150
 FC_LAYER = [1024, 512, 256]
 L_R = 3e-4
 DROPOUT = 0.25
-N_CLASSES = 3
+N_CLASSES = len(DRIFT_TYPES)
 PRETRAINED = False
 
 # average, flatten
@@ -23,11 +26,12 @@ OPTIMIZER = "adam"
 
 EPOCHS = 200
 
-DRIFT_TYPES = ["no_drift","gradual","sudden","incremental","recurring"]
-
 PREPROCESS = False
 CHECKPOINTS = False
 EARLY_STOPPING = True
 TENSORBOARD = True
 SAVE_MODEL = True
 AUGMENTATION = True
+XAI_VIS = True
+NEW_MODEL = True
+TRAIN_MODEL = True

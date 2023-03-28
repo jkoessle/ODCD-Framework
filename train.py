@@ -1,15 +1,18 @@
 import tensorflow as tf
-from cnn_approach.preprocessing_pipeline import preprocessing_pipeline
-from cnn_approach.cnn_module import cnn_model
+import numpy as np
+import os
 import utils.config as cfg
 import utils.utilities as utils
-# import tensorflow_model_analysis as tfma
-# from google.protobuf import text_format
+import cnn_approach.xai as xai
+import cnn_approach.preprocessing_pipeline as pp
+import cnn_approach.cnn_module as cnn
+from tf_keras_vis.utils.scores import CategoricalScore
+
 
 if __name__ == "__main__":
 
     if cfg.PREPROCESS:
-        preprocessing_pipeline(cfg.N_WINDOWS, p_mode="train")
+        pp.preprocessing_pipeline(cfg.N_WINDOWS, p_mode="train")
     else:
         cfg.DEFAULT_DATA_DIR = cfg.INTERIM_DATA_DIR
 
@@ -20,49 +23,69 @@ if __name__ == "__main__":
         seed=42, validation_split=0.2, color_mode="rgb")
 
     date = utils.get_timestamp()
-    
+
     callbacks = []
 
     if cfg.CHECKPOINTS:
         checkpoints_dir = "checkpoints/" + date
         checkpoints = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoints_dir,
-                                                        monitor="val_accuracy",
-                                                        save_best_only=True)
+                                                         monitor="val_accuracy",
+                                                         save_best_only=True)
         callbacks.append(checkpoints)
 
     if cfg.EARLY_STOPPING:
         early_stopping = tf.keras.callbacks.EarlyStopping(monitor="val_accuracy",
-                                                      min_delta=0.01,
-                                                      patience=7)
+                                                          min_delta=0.01,
+                                                          patience=7)
         callbacks.append(early_stopping)
-        
+
     if cfg.TENSORBOARD:
         log_dir = "tensorboard_logs/tb_log_" + date
         tf_board = tf.keras.callbacks.TensorBoard(
             log_dir=log_dir, histogram_freq=1)
         callbacks.append(tf_board)
 
-    model = cnn_model(model_selection=cfg.MODEL_SELECTION,
-                      targetsize=cfg.TARGETSIZE, pretrained=cfg.PRETRAINED,
-                      fc_layer=cfg.FC_LAYER, n_classes=cfg.N_CLASSES,
-                      dropout=cfg.DROPOUT, agg_layer=cfg.AGG_LAYER,
-                      l_r=cfg.L_R, optimizer=cfg.OPTIMIZER)
+    if cfg.NEW_MODEL:
+        model = cnn.cnn_model(model_selection=cfg.MODEL_SELECTION,
+                            targetsize=cfg.TARGETSIZE, pretrained=cfg.PRETRAINED,
+                            fc_layer=cfg.FC_LAYER, n_classes=cfg.N_CLASSES,
+                            dropout=cfg.DROPOUT, agg_layer=cfg.AGG_LAYER,
+                            l_r=cfg.L_R, optimizer=cfg.OPTIMIZER)
+    else:
+        model = tf.keras.models.load_model(cfg.MODEL_PATH)
+        
+    if cfg.TRAIN_MODEL:
+        model.fit(train_ds, epochs=cfg.EPOCHS, validation_data=val_ds,
+                callbacks=callbacks)
 
-    model.fit(train_ds, epochs=cfg.EPOCHS, validation_data=val_ds,
-              callbacks=callbacks)
+    out_path = utils.create_output_directory(date)
 
     if cfg.SAVE_MODEL:
-        model.save(f"{cfg.MODEL_SELECTION}_{date}.h5")
+        model.save(os.path.join(out_path, f"{cfg.MODEL_SELECTION}_{date}.h5"))
 
-    # metrics_specs = text_format.Parse("""
-    # metrics_specs {
-    #     metrics { class_name: "ExampleCount" }
-    #     metrics { class_name: "SparseCategoricalCrossentropy" }
-    #     metrics { class_name: "SparseCategoricalAccuracy" }
-    #     metrics { class_name: "Precision" config: '"top_k": 1' }
-    #     metrics { class_name: "Precision" config: '"top_k": 3' }
-    #     metrics { class_name: "Recall" config: '"top_k": 1' }
-    #     metrics { class_name: "Recall" config: '"top_k": 3' }
-    #     metrics { class_name: "MultiClassConfusionMatrixPlot" }
-    # }
-    # """, tfma.EvalConfig()).metrics_specs
+    if cfg.XAI_VIS:
+        labels = val_ds.class_names
+
+        images = []
+
+        for i in range(len(labels)):
+            filtered_ds = val_ds.filter(
+                lambda _, tmp: tf.math.equal(tmp[0], i))
+            for image, label in filtered_ds.take(1):
+                images.append(image[0].numpy().astype('uint8'))
+
+        assert len(images) == len(labels), "Did not find one image per label"
+
+        images = np.asarray(images)
+
+        score = CategoricalScore([i for i in len(labels)])
+
+        preprocess_images = xai.preprocess_model_input(
+            cfg.MODEL_SELECTION, images)
+
+        xai.smooth_grad(model, score, preprocess_images, labels, out_path)
+
+        xai.grad_cam(model, score, images, preprocess_images, labels, out_path)
+
+        xai.fast_score_cam(model, score, images,
+                           preprocess_images, labels, out_path)

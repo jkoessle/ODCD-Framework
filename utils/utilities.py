@@ -1,5 +1,7 @@
 import os
-import utils.config as config
+import datetime
+import pytz
+import utils.config as cfg
 import pm4py as pm
 import polars as pl
 import numpy as np
@@ -9,18 +11,16 @@ from pm4py.objects.log.importer.xes import importer as xes_importer
 from pm4py.objects.log.obj import EventLog
 from pm4py.algo.filtering.log.attributes import attributes_filter
 from deprecated import deprecated
-import datetime
-import pytz
 
 
 def get_event_log_paths():
     list_of_files = {}
-    for dir_path, dir_names, filenames in os.walk(config.DEFAULT_LOG_DIR):
+    for dir_path, dir_names, filenames in os.walk(cfg.DEFAULT_LOG_DIR):
         for filename in filenames:
             if filename.endswith('.xes'):
                 list_of_files[filename] = dir_path
 
-    assert len(list_of_files) > 0, f"{config.DEFAULT_LOG_DIR} is empty"
+    assert len(list_of_files) > 0, f"{cfg.DEFAULT_LOG_DIR} is empty"
 
     return list_of_files
 
@@ -86,7 +86,7 @@ def get_collection_information() -> pl.DataFrame:
     Returns:
         pl.DataFrame: contains metadata of event log
     """
-    path = os.path.join(config.DEFAULT_LOG_DIR, "collection_info.csv")
+    path = os.path.join(cfg.DEFAULT_LOG_DIR, "collection_info.csv")
 
     return pl.read_csv(path)
 
@@ -135,12 +135,25 @@ def create_experiment():
 
     timestamp = get_timestamp()
 
-    exp_path = os.path.join(config.DEFAULT_DATA_DIR, f"experiment_{timestamp}")
+    exp_path = os.path.join(cfg.DEFAULT_DATA_DIR, f"experiment_{timestamp}")
     cwd = os.getcwd()
 
-    for drift in config.DRIFT_TYPES:
+    for drift in cfg.DRIFT_TYPES:
         path = os.path.join(cwd, exp_path, drift)
         os.makedirs(path)
 
     print(f"Experiment created at {exp_path}")
     return exp_path
+
+
+def create_output_directory(timestamp):
+
+    cwd = os.getcwd()
+    out_path = os.path.join(cwd, 
+                            cfg.DEFAULT_OUTPUT_DIR, 
+                            f"{timestamp}_{cfg.MODEL_SELECTION}")
+    
+    os.makedirs(out_path)
+    os.makedirs(os.path.join(out_path,"images"))
+    
+    return out_path
