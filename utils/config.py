@@ -1,5 +1,6 @@
 DEFAULT_DATA_DIR = "data"
 DEFAULT_LOG_DIR = "logs"
+INTERIM_DATA_DIR = "data\\train"
 DEFAULT_OUTPUT_DIR = ""
 N_WINDOWS = 100
 MODE = "time"
@@ -23,3 +24,10 @@ OPTIMIZER = "adam"
 EPOCHS = 200
 
 DRIFT_TYPES = ["no_drift","gradual","sudden","incremental","recurring"]
+
+PREPROCESS = False
+CHECKPOINTS = False
+EARLY_STOPPING = True
+TENSORBOARD = True
+SAVE_MODEL = True
+AUGMENTATION = True

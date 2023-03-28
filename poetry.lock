@@ -609,6 +609,38 @@ files = [
 ]
 
 [[package]]
+name = "imageio"
+version = "2.27.0"
+description = "Library for reading and writing a wide range of image, video, scientific, and volumetric data formats."
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "imageio-2.27.0-py3-none-any.whl", hash = "sha256:24c6ad7d000e64eacc2861c402b6fb128f370cb0a6623cf796d83bca0d0d14d3"},
+    {file = "imageio-2.27.0.tar.gz", hash = "sha256:ee269c957785ef0373cc7a7323185956d83ec05e6cdf20b42a03ba7b74ac58c6"},
+]
+
+[package.dependencies]
+numpy = "*"
+pillow = ">=8.3.2"
+
+[package.extras]
+all-plugins = ["astropy", "av", "imageio-ffmpeg", "psutil", "tifffile"]
+all-plugins-pypy = ["av", "imageio-ffmpeg", "psutil", "tifffile"]
+build = ["wheel"]
+dev = ["black", "flake8", "fsspec[github]", "invoke", "pytest", "pytest-cov"]
+docs = ["numpydoc", "pydata-sphinx-theme", "sphinx (<6)"]
+ffmpeg = ["imageio-ffmpeg", "psutil"]
+fits = ["astropy"]
+full = ["astropy", "av", "black", "flake8", "fsspec[github]", "gdal", "imageio-ffmpeg", "invoke", "itk", "numpydoc", "psutil", "pydata-sphinx-theme", "pytest", "pytest-cov", "sphinx (<6)", "tifffile", "wheel"]
+gdal = ["gdal"]
+itk = ["itk"]
+linting = ["black", "flake8"]
+pyav = ["av"]
+test = ["fsspec[github]", "invoke", "pytest", "pytest-cov"]
+tifffile = ["tifffile"]
+
+[[package]]
 name = "intervaltree"
 version = "3.1.0"
 description = "Editable interval tree data structure for Python 2 and 3"
@@ -1793,6 +1825,30 @@ files = [
 tests = ["pytest", "pytest-cov"]
 
 [[package]]
+name = "tf-keras-vis"
+version = "0.8.4"
+description = "Neural network visualization toolkit for tf.keras"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "tf-keras-vis-0.8.4.tar.gz", hash = "sha256:94fb7d21968d5b1334c9c9dfb70c368b36a2560408032ad4cac1d2432cd526ce"},
+    {file = "tf_keras_vis-0.8.4-py3-none-any.whl", hash = "sha256:5ac144f04f42941eea3530002f312ed54d11f02ffc0eb16ddafea0c33290e4a4"},
+]
+
+[package.dependencies]
+deprecated = "*"
+imageio = "*"
+packaging = "*"
+pillow = "*"
+scipy = "*"
+
+[package.extras]
+develop = ["flake8", "flake8-docstrings", "isort", "pytest", "pytest-cov", "pytest-env", "pytest-pycodestyle", "pytest-xdist", "yapf"]
+docs = ["myst-parser", "nbsphinx", "pandoc", "sphinx", "sphinx-autobuild", "sphinx-rtd-theme"]
+examples = ["jupyterlab", "matplotlib"]
+
+[[package]]
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
@@ -1996,4 +2052,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "04a5b0854155626e117eda8ff5657e6e86fee304561253ab778efecfd434ef97"
+content-hash = "9c7a55d8db852a7288ec2463018f96fa9747f05cdb53bff435bbfaa79f0db1e2"

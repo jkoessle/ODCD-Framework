@@ -17,6 +17,7 @@ autopep8 = "^2.0.2"
 deprecated = "^1.2.13"
 tensorflow = "^2.11.1"
 pytz = "^2022.7.1"
+tf-keras-vis = "^0.8.4"
 
 
 [build-system]
