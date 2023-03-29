@@ -141,6 +141,6 @@ def cnn_model(model_selection, targetsize, pretrained, fc_layer, n_classes,
     # compile model
     model.compile(optimizer=optim,
                   loss='sparse_categorical_crossentropy',
-                  metrics=['accuracy'])
+                  metrics=['sparse_categorical_accuracy'])
     
     return model

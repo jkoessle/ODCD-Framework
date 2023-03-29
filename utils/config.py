@@ -1,5 +1,6 @@
 DEFAULT_DATA_DIR = "data"
 DEFAULT_LOG_DIR = "logs"
+TEST_DATA_DIR = ""
 INTERIM_DATA_DIR = "data\\train"
 DEFAULT_OUTPUT_DIR = "output"
 MODEL_PATH = ""
@@ -10,6 +11,7 @@ DRIFT_TYPES = ["no_drift","gradual","sudden","incremental","recurring"]
 # resnet, inception, inc_res, resnet_rs, xception
 MODEL_SELECTION = "resnet"
 
+IMAGE_SIZE = (150, 150)
 TARGETSIZE = 150
 FC_LAYER = [1024, 512, 256]
 L_R = 3e-4
@@ -34,3 +36,4 @@ AUGMENTATION = True
 XAI_VIS = True
 NEW_MODEL = True
 TRAIN_MODEL = True
+PREDICT = True

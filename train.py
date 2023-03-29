@@ -6,6 +6,7 @@ import utils.utilities as utils
 import cnn_approach.xai as xai
 import cnn_approach.preprocessing_pipeline as pp
 import cnn_approach.cnn_module as cnn
+from predict import predict
 from tf_keras_vis.utils.scores import CategoricalScore
 
 
@@ -16,10 +17,8 @@ if __name__ == "__main__":
     else:
         cfg.DEFAULT_DATA_DIR = cfg.INTERIM_DATA_DIR
 
-    size = (150, 150)
-
     train_ds, val_ds = tf.keras.utils.image_dataset_from_directory(
-        cfg.DEFAULT_DATA_DIR, subset="both", image_size=size,
+        cfg.DEFAULT_DATA_DIR, subset="both", image_size=cfg.IMAGE_SIZE,
         seed=42, validation_split=0.2, color_mode="rgb")
 
     date = utils.get_timestamp()
@@ -95,3 +94,6 @@ if __name__ == "__main__":
 
         xai.fast_score_cam(best_model, score, images,
                            preprocess_images, labels, out_path)
+        
+    if cfg.PREDICT:
+        predict(best_model, out_path)
