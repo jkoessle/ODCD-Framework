@@ -34,6 +34,7 @@ if __name__ == "__main__":
                                                          monitor="val_accuracy",
                                                          save_best_only=True)
         callbacks.append(checkpoints)
+        cfg.MODEL_PATH = checkpoints_dir
 
     if cfg.EARLY_STOPPING:
         early_stopping = tf.keras.callbacks.EarlyStopping(monitor="val_accuracy",
@@ -67,6 +68,11 @@ if __name__ == "__main__":
         labels = val_ds.class_names
 
         images = []
+        
+        if cfg.CHECKPOINTS and cfg.EARLY_STOPPING:
+            best_model = tf.keras.models.load_model(cfg.MODEL_PATH)
+        else:
+            best_model = model
 
         for i in range(len(labels)):
             filtered_ds = val_ds.filter(
@@ -83,9 +89,9 @@ if __name__ == "__main__":
         preprocess_images = xai.preprocess_model_input(
             cfg.MODEL_SELECTION, images)
 
-        xai.smooth_grad(model, score, preprocess_images, labels, out_path)
+        xai.smooth_grad(best_model, score, preprocess_images, labels, out_path)
 
-        xai.grad_cam(model, score, images, preprocess_images, labels, out_path)
+        xai.grad_cam(best_model, score, images, preprocess_images, labels, out_path)
 
-        xai.fast_score_cam(model, score, images,
+        xai.fast_score_cam(best_model, score, images,
                            preprocess_images, labels, out_path)
