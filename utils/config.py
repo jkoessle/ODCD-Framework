@@ -4,7 +4,6 @@ INTERIM_DATA_DIR = "data\\train"
 DEFAULT_OUTPUT_DIR = "output"
 MODEL_PATH = ""
 N_WINDOWS = 100
-MODE = "time"
 
 DRIFT_TYPES = ["no_drift","gradual","sudden","incremental","recurring"]
 

@@ -23,11 +23,13 @@ if __name__ == "__main__":
         seed=42, validation_split=0.2, color_mode="rgb")
 
     date = utils.get_timestamp()
+    out_path = utils.create_output_directory(date)
 
     callbacks = []
 
     if cfg.CHECKPOINTS:
-        checkpoints_dir = "checkpoints/" + date
+        checkpoints_dir = os.path.join(out_path, "checkpoints",
+                                       f"best_{cfg.MODEL_SELECTION}_{date}.h5")
         checkpoints = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoints_dir,
                                                          monitor="val_accuracy",
                                                          save_best_only=True)
@@ -35,30 +37,28 @@ if __name__ == "__main__":
 
     if cfg.EARLY_STOPPING:
         early_stopping = tf.keras.callbacks.EarlyStopping(monitor="val_accuracy",
-                                                          min_delta=0.01,
-                                                          patience=7)
+                                                          min_delta=0.001,
+                                                          patience=10)
         callbacks.append(early_stopping)
 
     if cfg.TENSORBOARD:
-        log_dir = "tensorboard_logs/tb_log_" + date
+        log_dir = f"tensorboard_logs/tb_log_{date}_{cfg.MODEL_SELECTION}"
         tf_board = tf.keras.callbacks.TensorBoard(
             log_dir=log_dir, histogram_freq=1)
         callbacks.append(tf_board)
 
     if cfg.NEW_MODEL:
         model = cnn.cnn_model(model_selection=cfg.MODEL_SELECTION,
-                            targetsize=cfg.TARGETSIZE, pretrained=cfg.PRETRAINED,
-                            fc_layer=cfg.FC_LAYER, n_classes=cfg.N_CLASSES,
-                            dropout=cfg.DROPOUT, agg_layer=cfg.AGG_LAYER,
-                            l_r=cfg.L_R, optimizer=cfg.OPTIMIZER)
+                              targetsize=cfg.TARGETSIZE, pretrained=cfg.PRETRAINED,
+                              fc_layer=cfg.FC_LAYER, n_classes=cfg.N_CLASSES,
+                              dropout=cfg.DROPOUT, agg_layer=cfg.AGG_LAYER,
+                              l_r=cfg.L_R, optimizer=cfg.OPTIMIZER)
     else:
         model = tf.keras.models.load_model(cfg.MODEL_PATH)
-        
+
     if cfg.TRAIN_MODEL:
         model.fit(train_ds, epochs=cfg.EPOCHS, validation_data=val_ds,
-                callbacks=callbacks)
-
-    out_path = utils.create_output_directory(date)
+                  callbacks=callbacks)
 
     if cfg.SAVE_MODEL:
         model.save(os.path.join(out_path, f"{cfg.MODEL_SELECTION}_{date}.h5"))
@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
         images = np.asarray(images)
 
-        score = CategoricalScore([i for i in len(labels)])
+        score = CategoricalScore([i for i in range(len(labels))])
 
         preprocess_images = xai.preprocess_model_input(
             cfg.MODEL_SELECTION, images)
