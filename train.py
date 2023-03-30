@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     train_ds, val_ds = tf.keras.utils.image_dataset_from_directory(
         cfg.DEFAULT_DATA_DIR, subset="both", image_size=cfg.IMAGE_SIZE,
-        shuffle=False, seed=42, validation_split=0.2, color_mode="rgb")
+        shuffle=True, seed=42, validation_split=0.2, color_mode="rgb")
 
     date = utils.get_timestamp()
     out_path = utils.create_output_directory(date)
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         early_stopping = tf.keras.callbacks.EarlyStopping(
             monitor="val_sparse_categorical_accuracy",
             min_delta=0.001,
-            patience=10,
+            patience=cfg.EARLY_STOPPING_PATIENCE,
             verbose=1)
         callbacks.append(early_stopping)
 

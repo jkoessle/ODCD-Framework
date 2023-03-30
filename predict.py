@@ -9,7 +9,7 @@ from utils.evaluate import plot_classification_report, plot_confusion_matrix
 def predict(model, out_path):
     test_ds = tf.keras.utils.image_dataset_from_directory(
         cfg.TEST_DATA_DIR, image_size=cfg.IMAGE_SIZE,
-        shuffle=False, seed=42, color_mode="rgb")
+        shuffle=False, color_mode="rgb")
     
     labels = test_ds.class_names
     labels_idx = [i for i in range(len(labels))]
