@@ -128,7 +128,7 @@ def cnn_model(model_selection, targetsize, pretrained, fc_layer, n_classes,
         x = tf.keras.layers.Dropout(dropout)(x)
 
     # add output layer
-    outputs = tf.keras.layers.Dense(n_classes, activation="softmax")(x)
+    outputs = tf.keras.layers.Dense(n_classes)(x)
 
     # create model
     model = tf.keras.Model(inputs=inputs, outputs=outputs, name="cnn_model")
@@ -140,7 +140,7 @@ def cnn_model(model_selection, targetsize, pretrained, fc_layer, n_classes,
     
     # compile model
     model.compile(optimizer=optim,
-                  loss='sparse_categorical_crossentropy',
+                  loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
                   metrics=['sparse_categorical_accuracy'])
     
     return model

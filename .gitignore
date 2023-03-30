@@ -138,3 +138,6 @@ logs/*
 
 # misc
 test.py
+
+# models
+*.h5
