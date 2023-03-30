@@ -1,5 +1,6 @@
 import os
 import tensorflow as tf
+import numpy as np
 import utils.config as cfg
 from utils.evaluate import plot_classification_report, plot_confusion_matrix
 from utils.evaluate import f1
@@ -12,8 +13,10 @@ def predict(model, out_path):
     
     labels = test_ds.class_names
     labels_idx = [i for i in range(len(labels))]
-
-    images, y_true = test_ds
+    
+    # get images and labels of test set
+    # images = np.concatenate([x for x, y in test_ds], axis=0)
+    y_true = np.concatenate([y for x, y in test_ds], axis=0)
 
     y_pred = model.predict(test_ds)
     

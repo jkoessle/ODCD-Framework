@@ -29,16 +29,20 @@ if __name__ == "__main__":
     if cfg.CHECKPOINTS:
         checkpoints_dir = os.path.join(out_path, "checkpoints",
                                        f"best_{cfg.MODEL_SELECTION}_{date}.h5")
-        checkpoints = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoints_dir,
-                                                         monitor="val_accuracy",
-                                                         save_best_only=True)
+        checkpoints = tf.keras.callbacks.ModelCheckpoint(
+            filepath=checkpoints_dir,
+            monitor="val_sparse_categorical_accuracy",
+            save_best_only=True,
+            verbose=1)
         callbacks.append(checkpoints)
         cfg.MODEL_PATH = checkpoints_dir
 
     if cfg.EARLY_STOPPING:
-        early_stopping = tf.keras.callbacks.EarlyStopping(monitor="val_accuracy",
-                                                          min_delta=0.001,
-                                                          patience=10)
+        early_stopping = tf.keras.callbacks.EarlyStopping(
+            monitor="val_sparse_categorical_accuracy",
+            min_delta=0.001,
+            patience=10,
+            verbose=1)
         callbacks.append(early_stopping)
 
     if cfg.TENSORBOARD:
@@ -67,8 +71,8 @@ if __name__ == "__main__":
         labels = val_ds.class_names
 
         images = []
-        
-        if cfg.CHECKPOINTS and cfg.EARLY_STOPPING:
+
+        if cfg.CHECKPOINTS:
             best_model = tf.keras.models.load_model(cfg.MODEL_PATH)
         else:
             best_model = model
@@ -90,10 +94,11 @@ if __name__ == "__main__":
 
         xai.smooth_grad(best_model, score, preprocess_images, labels, out_path)
 
-        xai.grad_cam(best_model, score, images, preprocess_images, labels, out_path)
+        xai.grad_cam(best_model, score, images,
+                     preprocess_images, labels, out_path)
 
         xai.fast_score_cam(best_model, score, images,
                            preprocess_images, labels, out_path)
-        
+
     if cfg.PREDICT:
         predict(best_model, out_path)
