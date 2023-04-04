@@ -6,23 +6,29 @@ import utils.utilities as utils
 import cnn_approach.xai as xai
 import cnn_approach.preprocessing_pipeline as pp
 import cnn_approach.cnn_module as cnn
+from cnn_approach.datasets import get_train_split, get_multilabel_train_data
+from cnn_approach.datasets import get_multilabel_validation_data
 from predict import predict
 from tf_keras_vis.utils.scores import CategoricalScore
 
 
 if __name__ == "__main__":
 
+    date = utils.get_timestamp()
+    out_path = utils.create_output_directory(date)
+
     if cfg.PREPROCESS:
         pp.preprocessing_pipeline(cfg.N_WINDOWS, p_mode="train")
     else:
         cfg.DEFAULT_DATA_DIR = cfg.INTERIM_DATA_DIR
 
-    train_ds, val_ds = tf.keras.utils.image_dataset_from_directory(
-        cfg.DEFAULT_DATA_DIR, subset="both", image_size=cfg.IMAGE_SIZE,
-        shuffle=True, seed=42, validation_split=0.2, color_mode="rgb")
-
-    date = utils.get_timestamp()
-    out_path = utils.create_output_directory(date)
+    if cfg.MULTILABEL:
+        train_ds = get_multilabel_train_data()
+        val_ds = get_multilabel_validation_data()
+        monitor = "val_binary_accuracy"
+    else:
+        train_ds, val_ds = get_train_split()
+        monitor = "val_sparse_categorical_accuracy"
 
     callbacks = []
 
@@ -31,7 +37,7 @@ if __name__ == "__main__":
                                        f"best_{cfg.MODEL_SELECTION}_{date}.h5")
         checkpoints = tf.keras.callbacks.ModelCheckpoint(
             filepath=checkpoints_dir,
-            monitor="val_sparse_categorical_accuracy",
+            monitor=monitor,
             save_best_only=True,
             verbose=1)
         callbacks.append(checkpoints)
@@ -39,7 +45,7 @@ if __name__ == "__main__":
 
     if cfg.EARLY_STOPPING:
         early_stopping = tf.keras.callbacks.EarlyStopping(
-            monitor="val_sparse_categorical_accuracy",
+            monitor=monitor,
             min_delta=0.001,
             patience=cfg.EARLY_STOPPING_PATIENCE,
             verbose=1)
@@ -62,7 +68,7 @@ if __name__ == "__main__":
 
     if cfg.TRAIN_MODEL:
         model.fit(train_ds, epochs=cfg.EPOCHS, validation_data=val_ds,
-                  callbacks=callbacks)
+                  callbacks=callbacks, verbose=2)
 
     if cfg.SAVE_MODEL:
         model.save(os.path.join(out_path, f"{cfg.MODEL_SELECTION}_{date}.h5"))

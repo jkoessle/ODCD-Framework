@@ -73,7 +73,7 @@ def get_nested_log_information(log: EventLog) -> tuple[dict, dict]:
         drift_info = log.attributes["drift:info"]["children"]
         noise_info = log.attributes["noise:info"]["children"]
     except Exception:
-        drift_info = {"drift_type": "no_drift"}
+        drift_info = {"drift_type": "no-drift"}
         noise_info = log.attributes["noise:info"]["children"]
 
     return noise_info, drift_info
@@ -104,25 +104,28 @@ def matrix_to_img(matrix, number, drift_type, exp_path, mode="color"):
     elif mode == "gray":
         im = Image.fromarray(matrix).convert("RGB")
 
-    # save image with specified drift type
-    if drift_type == "gradual":
-        im.save(os.path.join(exp_path,
-                "gradual", f"gradual_{number}.png"))
-    elif drift_type == "sudden":
-        im.save(os.path.join(exp_path,
-                "sudden", f"sudden_{number}.png"))
-    elif drift_type == "incremental":
-        im.save(os.path.join(exp_path,
-                "incremental", f"incremental_{number}.png"))
-    elif drift_type == "recurring":
-        im.save(os.path.join(exp_path,
-                "recurring", f"recurring_{number}.png"))
-    elif drift_type == "no_drift":
-        im.save(os.path.join(exp_path,
-                "no_drift", f"no_drift_{number}.png"))
-    elif drift_type == "eval":
-        im.save(os.path.join(exp_path,
-                "eval", f"eval_{number}.png"))
+    if cfg.MULTILABEL:
+        im.save(os.path.join(exp_path, f"{number}_{drift_type}.png"))
+    else:
+        # save image with specified drift type
+        if drift_type == "gradual":
+            im.save(os.path.join(exp_path,
+                    "gradual", f"gradual_{number}.png"))
+        elif drift_type == "sudden":
+            im.save(os.path.join(exp_path,
+                    "sudden", f"sudden_{number}.png"))
+        elif drift_type == "incremental":
+            im.save(os.path.join(exp_path,
+                    "incremental", f"incremental_{number}.png"))
+        elif drift_type == "recurring":
+            im.save(os.path.join(exp_path,
+                    "recurring", f"recurring_{number}.png"))
+        elif drift_type == "no_drift":
+            im.save(os.path.join(exp_path,
+                    "no_drift", f"no_drift_{number}.png"))
+        elif drift_type == "eval":
+            im.save(os.path.join(exp_path,
+                    "eval", f"eval_{number}.png"))
 
 
 def get_timestamp():
@@ -146,14 +149,25 @@ def create_experiment():
     return exp_path
 
 
+def create_multilabel_experiment():
+
+    timestamp = get_timestamp()
+
+    exp_path = os.path.join(cfg.DEFAULT_DATA_DIR, f"experiment_{timestamp}")
+    os.makedirs(exp_path)
+
+    print(f"Experiment created at {exp_path}")
+    return exp_path
+
+
 def create_output_directory(timestamp):
 
     cwd = os.getcwd()
-    out_path = os.path.join(cwd, 
-                            cfg.DEFAULT_OUTPUT_DIR, 
+    out_path = os.path.join(cwd,
+                            cfg.DEFAULT_OUTPUT_DIR,
                             f"{timestamp}_{cfg.MODEL_SELECTION}")
-    
+
     os.makedirs(out_path)
-    os.makedirs(os.path.join(out_path,"images"))
-    
+    os.makedirs(os.path.join(out_path, "images"))
+
     return out_path

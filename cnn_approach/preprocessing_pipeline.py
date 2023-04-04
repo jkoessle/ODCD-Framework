@@ -44,7 +44,7 @@ def preprocessing_pipeline(n_windows=100, p_mode="train"):
 
         # load event log
         event_log = utils.import_event_log(path=path, name=name)
-
+        
         # TODO outsource to function - save info as csv/dataframe
         if p_mode == "train":
             noise_info, drift_info = utils.get_nested_log_information(
@@ -70,6 +70,64 @@ def preprocessing_pipeline(n_windows=100, p_mode="train"):
         utils.matrix_to_img(matrix=sim_matrix, number=log_numbers[drift_type],
                             drift_type=drift_type, exp_path=cfg.DEFAULT_DATA_DIR,
                             mode="color")
+
+
+def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
+    # create experiment folder structure
+    cfg.DEFAULT_DATA_DIR = utils.create_multilabel_experiment()
+
+    # get all paths and file names of event logs
+    log_files = utils.get_event_log_paths()
+
+    # incrementally store number of log based on drift type - for file naming purposes
+    drift_number = 1
+
+    # iterate through log files
+    for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs",
+                           unit="Event Log"):
+
+        # load event log
+        event_log = utils.import_event_log(path=path, name=name)
+        
+        # TODO outsource to function - save info as csv/dataframe
+        if p_mode == "train":
+            noise_info, drift_info = utils.get_nested_log_information(
+                event_log)
+            # log_number = drift_info["log_id"]
+            
+            drift_type = None
+            
+            drift_types = []
+            
+            for drift in drift_info.values():
+                new_d_t = drift["children"]["drift_type"]
+                if new_d_t not in drift_types:
+                    drift_types.append(new_d_t)
+                else:
+                    continue
+                if drift_type is None:
+                    drift_type = new_d_t
+                else:
+                    drift_type = drift_type + "_" + new_d_t
+        elif p_mode == "eval":
+            drift_type = name
+
+        # if the log contains incomplete traces, the log is filtered
+        filtered_log = utils.filter_complete_events(event_log)
+
+        windowed_dfg_matrices = log_to_windowed_dfg_count(
+            filtered_log, n_windows)
+
+        # get similarity matrix
+        sim_matrix = similarity_calculation(windowed_dfg_matrices)
+
+        # save matrix as image
+        utils.matrix_to_img(matrix=sim_matrix, number=drift_number,
+                            drift_type=drift_type, exp_path=cfg.DEFAULT_DATA_DIR,
+                            mode="color")
+        
+        # increment log number
+        drift_number  += 1
 
 
 def log_to_windowed_dfg_count(event_log, n_windows):

@@ -1,19 +1,22 @@
-DEFAULT_DATA_DIR = "data"
-DEFAULT_LOG_DIR = "logs"
-TEST_DATA_DIR = ""
-INTERIM_DATA_DIR = ""
+DEFAULT_DATA_DIR = "data\experiment_20230404-190632"
+DEFAULT_LOG_DIR = "logs\\1680627785"
+
+TRAIN_DATA_DIR = "data\experiment_20230404-190632"
+EVAL_DATA_DIR = "data\experiment_20230404-190632"
+TEST_DATA_DIR = "data\experiment_20230404-190632"
+INTERIM_DATA_DIR = "data\experiment_20230404-190632"
 DEFAULT_OUTPUT_DIR = "output"
 MODEL_PATH = ""
 N_WINDOWS = 100
 
-DRIFT_TYPES = ["no_drift","gradual","sudden","incremental","recurring"]
+DRIFT_TYPES = ["gradual","sudden"]
 
-# resnet, inception, inc_res, resnet_rs, xception
-MODEL_SELECTION = "resnet"
+# resnet, inception, inc_res, resnet_rs, xception, baseline
+MODEL_SELECTION = "baseline"
 
 IMAGE_SIZE = (150, 150)
 TARGETSIZE = 150
-FC_LAYER = [1024, 512, 256]
+FC_LAYER = [128]
 L_R = 3e-4
 DROPOUT = 0.25
 N_CLASSES = len(DRIFT_TYPES)
@@ -38,3 +41,4 @@ XAI_VIS = True
 NEW_MODEL = True
 TRAIN_MODEL = True
 PREDICT = True
+MULTILABEL = True
