@@ -6,8 +6,8 @@ import utils.utilities as utils
 import cnn_approach.xai as xai
 import cnn_approach.preprocessing_pipeline as pp
 import cnn_approach.cnn_module as cnn
-from cnn_approach.datasets import get_train_split, get_multilabel_train_data
-from cnn_approach.datasets import get_multilabel_validation_data
+from cnn_approach.datasets import get_train_split
+from cnn_approach.datasets import create_multilabel_dataset
 from predict import predict
 from tf_keras_vis.utils.scores import CategoricalScore
 
@@ -23,8 +23,8 @@ if __name__ == "__main__":
         cfg.DEFAULT_DATA_DIR = cfg.INTERIM_DATA_DIR
 
     if cfg.MULTILABEL:
-        train_ds = get_multilabel_train_data()
-        val_ds = get_multilabel_validation_data()
+        train_ds = create_multilabel_dataset(cfg.TRAIN_DATA_DIR)
+        val_ds = create_multilabel_dataset(cfg.EVAL_DATA_DIR)
         monitor = "val_binary_accuracy"
     else:
         train_ds, val_ds = get_train_split()

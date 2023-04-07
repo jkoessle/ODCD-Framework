@@ -4,6 +4,7 @@ import pytz
 import utils.config as cfg
 import pm4py as pm
 import polars as pl
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -11,6 +12,8 @@ from pm4py.objects.log.importer.xes import importer as xes_importer
 from pm4py.objects.log.obj import EventLog
 from pm4py.algo.filtering.log.attributes import attributes_filter
 from deprecated import deprecated
+from pathlib import Path
+from sklearn.preprocessing import MultiLabelBinarizer
 
 
 def get_event_log_paths():
@@ -171,3 +174,51 @@ def create_output_directory(timestamp):
     os.makedirs(os.path.join(out_path, "images"))
 
     return out_path
+
+
+def generate_multilabel_info(dir):
+    list_of_files = [f for f in os.listdir(dir) if f.endswith(".png")]
+
+    multilabels = []
+
+    # get labels of images based on filename
+    for file in list_of_files:
+        filename = Path(file).stem
+        labels = filename.split("_")[1:]
+        labels_idx = [cfg.DRIFT_TYPES.index(elem) for elem in labels]
+        multilabels.append(labels_idx)
+
+        # multilabels.append(tuple(labels))
+
+    mlb = MultiLabelBinarizer(sparse_output=False)
+    one_hot_enc = mlb.fit_transform(multilabels)
+
+    # create label lookup as csv
+    labels = pd.DataFrame(one_hot_enc, columns=cfg.DRIFT_TYPES)
+    labels.insert(loc=0, column="filenames", value=list_of_files)
+    labels.to_csv(os.path.join(dir, "labels.csv"), index=False, sep=",")
+
+
+def onehot_2_string_labels(label, label_categorical):
+    labels = []
+    for i, label in enumerate(label):
+        if label_categorical[i]:
+            labels.append(label)
+    if len(labels) == 0:
+        labels.append("NONE")
+    return labels
+
+
+def show_samples(dataset):
+    fig = plt.figure(figsize=(10, 10))
+    # take the first batch of dataset
+    for img, label in dataset.take(1):
+        # show images of first batch
+        for i in range(cfg.BATCH_SIZE):
+            _ = plt.subplot(6, 6, i + 1)
+            plt.imshow(img[i].numpy().astype("uint8"))
+            plt.title("(" + str(label[i].numpy()) + ") " +
+                      str(onehot_2_string_labels(cfg.DRIFT_TYPES, label[i].numpy())))
+            plt.axis("off")
+    fig.tight_layout()
+    plt.show()

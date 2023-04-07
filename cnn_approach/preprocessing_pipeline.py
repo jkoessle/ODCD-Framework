@@ -1,31 +1,16 @@
 import numpy as np
 import pandas as pd
-# import polars as pl
 import utils.utilities as utils
 import utils.config as cfg
-# import pm4py
 from pm4py import discover_dfg_typed
 from numpy import linalg as LA
 from scipy import spatial
 from scipy.stats import wasserstein_distance
-# from pm4py.algo.filtering.log.attributes import attributes_filter
 from pm4py.objects.conversion.log import converter as log_converter
 from pm4py.objects.log.util import dataframe_utils
 from utils.sanity_checks import check_dfg_graph_freq
 from collections import defaultdict
 from tqdm import tqdm
-# from scipy import sparse
-
-# TODO change dfg to trace based instead of event
-# 1. number of traces or number of timestamps -> get equivalent timespaces
-# 2. get all traces that belong to one event based on timestamp
-
-# TODO E2E preprocessing pipeline
-# 1. get dfg matrix
-# 2. calc similarity values with measure
-# 3. save pictures in data folder according to tf.dataset structure
-
-# TODO flip y-axis
 
 
 def preprocessing_pipeline(n_windows=100, p_mode="train"):
@@ -128,6 +113,9 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
         
         # increment log number
         drift_number  += 1
+        
+    # generate labels in case of multiple labels
+    utils.generate_multilabel_info(cfg.DEFAULT_DATA_DIR)
 
 
 def log_to_windowed_dfg_count(event_log, n_windows):

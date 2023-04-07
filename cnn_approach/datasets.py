@@ -1,8 +1,7 @@
 import os
 import tensorflow as tf
 import utils.config as cfg
-from pathlib import Path
-# from sklearn.preprocessing import MultiLabelBinarizer
+import pandas as pd
 
 
 def get_train_split():
@@ -19,63 +18,46 @@ def get_test_data():
     return test_ds
 
 
-def get_multilabel_train_data():
-    ds = tf.keras.utils.image_dataset_from_directory(
-        cfg.TRAIN_DATA_DIR, labels=None, image_size=cfg.IMAGE_SIZE,
-        shuffle=False, color_mode="rgb")
+def parse_image_labels(filename, label):
 
-    labels = get_multilabels(cfg.TRAIN_DATA_DIR)
+    img = tf.io.read_file(filename)
+    img = tf.image.decode_png(img, channels=3)
+    img = tf.image.resize(img, cfg.IMAGE_SIZE)
+    img = tf.image.convert_image_dtype(img, tf.float32)
 
-    train_ds = tf.data.Dataset.zip(
-        (ds, tf.data.Dataset.from_tensor_slices(labels)))
-
-    return train_ds
+    return img, label
 
 
-def get_multilabel_validation_data():
-    ds = tf.keras.utils.image_dataset_from_directory(
-        cfg.EVAL_DATA_DIR, labels=None, image_size=cfg.IMAGE_SIZE,
-        shuffle=False, color_mode="rgb")
+def get_multilabel_information(dir):
+    # load generated label information
+    csv_path = os.path.join(dir, "labels.csv")
+    labels_df = pd.read_csv(csv_path, sep=",")
 
-    labels = get_multilabels(cfg.EVAL_DATA_DIR)
+    # get list of filenames and their paths
+    filenames = labels_df["filenames"].values
+    filenames = list(map(lambda x: os.path.join(dir, x), filenames))
 
-    val_ds = tf.data.Dataset.zip(
-        (ds, tf.data.Dataset.from_tensor_slices(labels)))
+    # get corresponding labels
+    labels = labels_df[cfg.DRIFT_TYPES].values
 
-    return val_ds
-
-
-def get_multilabel_test_data():
-    ds = tf.keras.utils.image_dataset_from_directory(
-        cfg.TEST_DATA_DIR, labels=None, image_size=cfg.IMAGE_SIZE,
-        shuffle=False, color_mode="rgb")
-
-    labels = get_multilabels(cfg.TEST_DATA_DIR)
-
-    test_ds = tf.data.Dataset.zip(
-        (ds, tf.data.Dataset.from_tensor_slices(labels)))
-
-    return test_ds
+    return filenames, labels
 
 
-def get_multilabels(dir):
+def create_multilabel_dataset(dir, training=True):
+    # get filenames and labels
+    filenames, labels = get_multilabel_information(dir)
 
-    list_of_files = [f for f in os.listdir(dir) if f.endswith(".png")]
+    # create dataset and map labels to images
+    dataset = tf.data.Dataset.from_tensor_slices((filenames, labels))
+    dataset = dataset.map(parse_image_labels,
+                          num_parallel_calls=tf.data.AUTOTUNE)
 
-    multilabels = []
+    if training:
+        # cache and shuffle if training mode
+        dataset = dataset.cache().shuffle(buffer_size=cfg.SHUFFLE_BUFFER_SIZE)
 
-    # get labels of images based on filename
-    for file in list_of_files:
-        filename = Path(file).stem
-        labels = filename.split("_")[1:]
-        labels_idx = tuple([cfg.DRIFT_TYPES.index(elem) for elem in labels])
-        multilabels.append(labels_idx)
+    # batch and prefetch data
+    dataset = dataset.batch(cfg.BATCH_SIZE).prefetch(
+        buffer_size=tf.data.AUTOTUNE)
 
-        # multilabels.append(tuple(labels))
-
-    # mlb = MultiLabelBinarizer(sparse_output=False)
-    # one_hot_enc = mlb.fit_transform(multilabels)
-
-    tf_magic = tf.one_hot(tf.ragged.constant(multilabels), cfg.N_CLASSES)
-
-    return tf_magic
+    return dataset

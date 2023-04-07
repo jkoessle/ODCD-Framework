@@ -2,7 +2,7 @@ import os
 import tensorflow as tf
 import numpy as np
 import utils.config as cfg
-from cnn_approach.datasets import get_multilabel_test_data, get_test_data
+from cnn_approach.datasets import create_multilabel_dataset, get_test_data
 from utils.evaluate import plot_classification_report, plot_confusion_matrix
 # from utils.evaluate import f1
 
@@ -10,7 +10,7 @@ from utils.evaluate import plot_classification_report, plot_confusion_matrix
 def predict(model, out_path):
 
     if cfg.MULTILABEL:
-        test_ds = get_multilabel_test_data()
+        test_ds = create_multilabel_dataset()
     else:
         test_ds = get_test_data()
 
