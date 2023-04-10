@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import multilabel_confusion_matrix
 from sklearn.metrics import ConfusionMatrixDisplay
 
 
@@ -61,4 +62,29 @@ def plot_confusion_matrix(y_true, y_pred, labels_idx, labels, path):
     disp.plot(ax=ax, cmap="YlGn")
     save_path = os.path.join(path, "confusion_matrix.png")
     plt.savefig(save_path)
+    print(f"Confusion matrix is saved at: {save_path}")
+    
+
+def plot_multilabel_confusion_matrix(y_true, y_pred, labels_idx, labels, path):
+    
+    # create multilabel confusion matrix and display
+    m_cm = multilabel_confusion_matrix(y_true, y_pred, labels=labels_idx)
+    n_subplots = cols = len(labels)
+    
+    # get rows and columns
+    rows = n_subplots // cols
+    if n_subplots % cols != 0:
+        rows += 1
+    pos = range(1,n_subplots + 1)
+    
+    # render plot dynamically
+    fig = plt.figure()
+    for i in range(n_subplots):
+        disp = ConfusionMatrixDisplay(m_cm[i], display_labels=labels)
+        ax = fig.add_subplot(rows, cols, pos[i])
+        ax.set_title(f"Confusion Matrix for Class '{labels[i]}'")
+        disp.plot(cmap="YlGn", ax=ax, colorbar=False)
+    fig.tight_layout()
+    save_path = os.path.join(path, "multilabel_confusion_matrix.png")
+    plt.savefig(save_path, bbox_inches='tight')
     print(f"Confusion matrix is saved at: {save_path}")

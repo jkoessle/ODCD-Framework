@@ -14,6 +14,7 @@ from pm4py.algo.filtering.log.attributes import attributes_filter
 from deprecated import deprecated
 from pathlib import Path
 from sklearn.preprocessing import MultiLabelBinarizer
+from itertools import combinations, chain, tee
 
 
 def get_event_log_paths():
@@ -56,6 +57,7 @@ def filter_complete_events(log: EventLog):
     return filtered_log
 
 
+#TODO
 def export_nested_log_information(log_info):
     pass
 
@@ -222,3 +224,18 @@ def show_samples(dataset):
             plt.axis("off")
     fig.tight_layout()
     plt.show()
+
+
+def get_powerset(set_list: list):
+
+    # hint: slicing skips (first) empty set
+    powerset = chain.from_iterable(combinations(
+        set_list, i) for i in range(len(set_list) + 1)[1:])
+    count_it = tee(powerset)
+
+    def get_powerset_length(powerset: chain):
+        return sum(1 for _ in powerset)
+
+    count = get_powerset_length(count_it)
+
+    return list(powerset), count
