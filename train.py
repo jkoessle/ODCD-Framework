@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import os
+import argparse
 import utils.config as cfg
 import utils.utilities as utils
 import cnn_approach.xai as xai
@@ -13,6 +14,15 @@ from tf_keras_vis.utils.scores import CategoricalScore
 
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser("train")
+    parser.add_argument("gpu_devices", help="Specify which CUDA devices to use.",
+                        type=str)
+    args = parser.parse_args()
+
+    # set cuda devices
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_devices
 
     date = utils.get_timestamp()
     out_path = utils.create_output_directory(date)
@@ -32,31 +42,6 @@ if __name__ == "__main__":
 
     callbacks = []
 
-    if cfg.CHECKPOINTS:
-        checkpoints_dir = os.path.join(out_path, "checkpoints",
-                                       f"best_{cfg.MODEL_SELECTION}_{date}.h5")
-        checkpoints = tf.keras.callbacks.ModelCheckpoint(
-            filepath=checkpoints_dir,
-            monitor=monitor,
-            save_best_only=True,
-            verbose=1)
-        callbacks.append(checkpoints)
-        cfg.MODEL_PATH = checkpoints_dir
-
-    if cfg.EARLY_STOPPING:
-        early_stopping = tf.keras.callbacks.EarlyStopping(
-            monitor=monitor,
-            min_delta=0.001,
-            patience=cfg.EARLY_STOPPING_PATIENCE,
-            verbose=1)
-        callbacks.append(early_stopping)
-
-    if cfg.TENSORBOARD:
-        log_dir = f"tensorboard_logs/tb_log_{date}_{cfg.MODEL_SELECTION}"
-        tf_board = tf.keras.callbacks.TensorBoard(
-            log_dir=log_dir, histogram_freq=1)
-        callbacks.append(tf_board)
-
     if cfg.NEW_MODEL:
         model = cnn.cnn_model(model_selection=cfg.MODEL_SELECTION,
                               targetsize=cfg.TARGETSIZE, pretrained=cfg.PRETRAINED,
@@ -67,14 +52,38 @@ if __name__ == "__main__":
         model = tf.keras.models.load_model(cfg.MODEL_PATH)
 
     if cfg.TRAIN_MODEL:
-        model.fit(train_ds, epochs=cfg.EPOCHS, validation_data=val_ds,
-                  callbacks=callbacks, verbose=2)
+        if cfg.CHECKPOINTS:
+            checkpoints_dir = os.path.join(out_path, "checkpoints",
+                                           f"best_{cfg.MODEL_SELECTION}_{date}.h5")
+            checkpoints = tf.keras.callbacks.ModelCheckpoint(
+                filepath=checkpoints_dir,
+                monitor=monitor,
+                save_best_only=True,
+                verbose=1)
+            callbacks.append(checkpoints)
+            cfg.MODEL_PATH = checkpoints_dir
+
+        if cfg.EARLY_STOPPING:
+            early_stopping = tf.keras.callbacks.EarlyStopping(
+                monitor=monitor,
+                min_delta=0.001,
+                patience=cfg.EARLY_STOPPING_PATIENCE,
+                verbose=1)
+            callbacks.append(early_stopping)
+
+        if cfg.TENSORBOARD:
+            log_dir = f"tensorboard_logs/tb_log_{date}_{cfg.MODEL_SELECTION}"
+            tf_board = tf.keras.callbacks.TensorBoard(
+                log_dir=log_dir, histogram_freq=1)
+            callbacks.append(tf_board)
+            model.fit(train_ds, epochs=cfg.EPOCHS, validation_data=val_ds,
+                      callbacks=callbacks, verbose=1)
 
     if cfg.SAVE_MODEL:
         model.save(os.path.join(out_path, f"{cfg.MODEL_SELECTION}_{date}.h5"))
 
     if cfg.XAI_VIS:
-        labels = val_ds.class_names
+        labels = cfg.DRIFT_TYPES
 
         images = []
 
@@ -83,28 +92,34 @@ if __name__ == "__main__":
         else:
             best_model = model
 
-        for i in range(len(labels)):
-            filtered_ds = val_ds.filter(
-                lambda _, tmp: tf.math.equal(tmp[0], i))
-            for image, label in filtered_ds.take(1):
-                images.append(image[0].numpy().astype('uint8'))
+        if cfg.MULTILABEL:
+            #TODO fix for multilabel case
+            pass
+        else:
+            for i in range(len(labels)):
+                filtered_ds = val_ds.filter(
+                    lambda _, tmp: tf.math.equal(tmp[0], i))
+                for image, label in filtered_ds.take(1):
+                    images.append(image[0].numpy().astype('uint8'))
 
-        assert len(images) == len(labels), "Did not find one image per label"
+            assert len(images) == len(
+                labels), "Did not find one image per label"
+            
+            images = np.asarray(images)
 
-        images = np.asarray(images)
+            score = CategoricalScore([i for i in range(len(labels))])
 
-        score = CategoricalScore([i for i in range(len(labels))])
+            preprocess_images = xai.preprocess_model_input(
+                cfg.MODEL_SELECTION, images)
 
-        preprocess_images = xai.preprocess_model_input(
-            cfg.MODEL_SELECTION, images)
+            xai.smooth_grad(best_model, score,
+                            preprocess_images, labels, out_path)
 
-        xai.smooth_grad(best_model, score, preprocess_images, labels, out_path)
+            xai.grad_cam(best_model, score, images,
+                         preprocess_images, labels, out_path)
 
-        xai.grad_cam(best_model, score, images,
-                     preprocess_images, labels, out_path)
-
-        xai.fast_score_cam(best_model, score, images,
-                           preprocess_images, labels, out_path)
+            xai.fast_score_cam(best_model, score, images,
+                               preprocess_images, labels, out_path)
 
     if cfg.PREDICT:
         predict(best_model, out_path)
