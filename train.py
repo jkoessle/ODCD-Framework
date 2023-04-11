@@ -10,7 +10,7 @@ import cnn_approach.cnn_module as cnn
 from cnn_approach.datasets import get_train_split
 from cnn_approach.datasets import create_multilabel_dataset
 from predict import predict
-from tf_keras_vis.utils.scores import CategoricalScore
+from tf_keras_vis.utils.scores import CategoricalScore, BinaryScore
 
 
 if __name__ == "__main__":
@@ -93,8 +93,9 @@ if __name__ == "__main__":
             best_model = model
 
         if cfg.MULTILABEL:
-            #TODO fix for multilabel case
-            pass
+            images = utils.get_multilabel_samples(val_ds)
+            
+            score = BinaryScore(0.0)
         else:
             for i in range(len(labels)):
                 filtered_ds = val_ds.filter(
@@ -109,17 +110,17 @@ if __name__ == "__main__":
 
             score = CategoricalScore([i for i in range(len(labels))])
 
-            preprocess_images = xai.preprocess_model_input(
-                cfg.MODEL_SELECTION, images)
+        preprocess_images = xai.preprocess_model_input(
+            cfg.MODEL_SELECTION, images)
 
-            xai.smooth_grad(best_model, score,
+        xai.smooth_grad(best_model, score,
+                        preprocess_images, labels, out_path)
+
+        xai.grad_cam(best_model, score, images,
+                        preprocess_images, labels, out_path)
+
+        xai.fast_score_cam(best_model, score, images,
                             preprocess_images, labels, out_path)
-
-            xai.grad_cam(best_model, score, images,
-                         preprocess_images, labels, out_path)
-
-            xai.fast_score_cam(best_model, score, images,
-                               preprocess_images, labels, out_path)
 
     if cfg.PREDICT:
         predict(best_model, out_path)

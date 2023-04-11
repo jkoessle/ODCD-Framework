@@ -7,6 +7,7 @@ import polars as pl
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import tensorflow as tf
 from PIL import Image
 from pm4py.objects.log.importer.xes import importer as xes_importer
 from pm4py.objects.log.obj import EventLog
@@ -224,6 +225,30 @@ def show_samples(dataset):
             plt.axis("off")
     fig.tight_layout()
     plt.show()
+
+
+def get_multilabel_samples(dataset):
+    images = []
+    labels = []
+    powerset, _ = get_powerset(cfg.DRIFT_TYPES)
+    label_list = []
+
+    for elem in powerset:
+        label_idx = np.asarray([cfg.DRIFT_TYPES.index(e) for e in elem])
+        label_list.append(label_idx)
+
+    mlb = MultiLabelBinarizer(sparse_output=False)
+    label_one_hot = mlb.fit_transform(label_list)
+
+    for elem in label_one_hot:
+        for img, label in dataset.shuffle(buffer_size=cfg.BATCH_SIZE).take(1):
+            for i in range(len(img)):
+                if tf.math.reduce_all(tf.equal(label[i], elem)):
+                    images.append(img[i])
+                    labels.append(label[i])
+                    break
+
+    return images, labels
 
 
 def get_powerset(set_list: list):
