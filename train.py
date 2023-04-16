@@ -12,11 +12,14 @@ from cnn_approach.datasets import create_multilabel_dataset
 from predict import predict
 from tf_keras_vis.utils.scores import CategoricalScore, BinaryScore
 
+#TODO add more expresive statements during execution
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser("train")
-    parser.add_argument("gpu_devices", help="Specify which CUDA devices to use.",
+    parser.add_argument("--gpu_devices", dest="gpu_devices", 
+                        help="Specify which CUDA devices to use.",
+                        default="",
                         type=str)
     args = parser.parse_args()
 
@@ -93,7 +96,7 @@ if __name__ == "__main__":
             best_model = model
 
         if cfg.MULTILABEL:
-            images = utils.get_multilabel_samples(val_ds)
+            images, image_labels = utils.get_multilabel_samples(val_ds)
             
             score = BinaryScore(0.0)
         else:

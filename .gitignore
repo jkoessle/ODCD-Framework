@@ -141,3 +141,6 @@ test.py
 
 # models
 *.h5
+
+# debugging
+launch.json

@@ -248,7 +248,7 @@ def get_multilabel_samples(dataset):
                     labels.append(label[i])
                     break
 
-    return images, labels
+    return np.asarray(images), labels
 
 
 def get_powerset(set_list: list):
