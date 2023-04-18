@@ -1,7 +1,7 @@
 import os
 import datetime
 import pytz
-import utils.config as cfg
+from . import config as cfg
 import pm4py as pm
 import polars as pl
 import pandas as pd
