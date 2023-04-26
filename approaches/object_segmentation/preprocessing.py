@@ -3,6 +3,7 @@ import pandas as pd
 import cnn_image_detection.utils.utilities as cnn_utils
 import object_segmentation.utilities as seg_utils
 import cnn_image_detection.utils.config as cfg
+import object_segmentation.datasets as data
 from pm4py import discover_dfg_typed
 from numpy import linalg as LA
 from scipy import spatial
@@ -54,15 +55,27 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
 
         # get similarity matrix
         sim_matrix = similarity_calculation(windowed_dfg_matrices)
+        
+        log_name = name.split(".")[0]
 
         # save matrix as image
         cnn_utils.matrix_to_img(matrix=sim_matrix, number=drift_number,
                             drift_type=drift_type, exp_path=cfg.DEFAULT_DATA_DIR,
-                            mode="color")
+                            log_name=log_name, mode="color")
         
         # increment log number
         drift_number  += 1
-
+        
+    # print(drift_info)
+    
+    # for testing purposes
+    # drift_info.to_csv("drift_info.csv")
+    
+    seg_utils.generate_annotations(drift_info, dir=cfg.DEFAULT_DATA_DIR)
+    annotations = seg_utils.read_annotations(dir=cfg.DEFAULT_DATA_DIR)
+    data.generate_tfr_data(img_dir=cfg.DEFAULT_DATA_DIR, annotations=annotations)
+    
+    
 
 def log_to_windowed_dfg_count(event_log, n_windows):
 

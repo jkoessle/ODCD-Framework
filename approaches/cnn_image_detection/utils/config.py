@@ -1,15 +1,17 @@
 DEFAULT_DATA_DIR = "data"
-DEFAULT_LOG_DIR = "logs"
+DEFAULT_LOG_DIR = ""
 
 TRAIN_DATA_DIR = ""
 EVAL_DATA_DIR = ""
 TEST_DATA_DIR = ""
 INTERIM_DATA_DIR = ""
+TFR_RECORDS_DIR = "tfr_data"
 DEFAULT_OUTPUT_DIR = "output"
 MODEL_PATH = ""
 N_WINDOWS = 100
 
-DRIFT_TYPES = ["gradual","sudden"]
+OBJECT_DETECTION = True
+DRIFT_TYPES = ["sudden","gradual","incremental","recurring"]
 
 # resnet, inception, inc_res, resnet_rs, xception, baseline
 MODEL_SELECTION = "baseline"

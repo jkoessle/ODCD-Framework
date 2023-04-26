@@ -1,6 +1,5 @@
-import tensorflow as tf
-import numpy as np
 import os
+import json
 import pandas as pd
 import cnn_image_detection.utils.config as cfg
 
@@ -25,7 +24,8 @@ def get_drift_coordinates(change_idx):
     else:
         xmin = ymin = xmax = ymax = change_idx[0]
 
-    return np.array((xmin, ymin, xmax, ymax))
+    # return np.array((xmin, ymin, xmax, ymax))
+    return [xmin, ymin, xmax, ymax]
 
 
 def update_trace_indices(df: pd.DataFrame, log_name, borders):
@@ -93,8 +93,7 @@ def bbox_corner_to_center(box):
     y = (ymin + ymax) / 2
     width = xmax - xmin
     height = ymax - ymin
-    boxes = tf.stack((x, y, width, height), axis=-1)
-    return boxes
+    return [x, y, width, height]
 
 
 def bbox_center_to_corner(box):
@@ -103,13 +102,95 @@ def bbox_center_to_corner(box):
     ymin = y - 0.5 * height
     xmax = x + 0.5 * width
     ymax = y + 0.5 * height
-    boxes = tf.stack((xmin, ymin, xmax, ymax), axis=-1)
-    return boxes
+    return [xmin, ymin, xmax, ymax]
 
 
-# TODO
-def generate_annotations(drift_info):
-    pass
+def get_bbox_as_list(df: pd.DataFrame, annotation_type="coco"):
+
+    if len(df.index) > 1:
+        first_row = df.iloc[0]["change_trace_index"]
+        last_row = df.iloc[-1]["change_trace_index"]
+
+        if annotation_type == "coco":
+            return bbox_corner_to_center(
+                [first_row[0], first_row[1], last_row[2], last_row[3]])
+        else:
+            return [first_row[0], first_row[1], last_row[2], last_row[3]]
+    else:
+        if annotation_type == "coco":
+            return bbox_corner_to_center(df.iloc[0]["change_trace_index"])
+        else:
+            return df.iloc[0]["change_trace_index"]
+        
+
+def get_bbox_as_list_untyped(df: pd.DataFrame, annotation_type="coco"):
+
+    if len(df.index) > 1:
+        first_row = special_string_2_list(df.iloc[0]["change_trace_index"])
+        last_row = special_string_2_list(df.iloc[-1]["change_trace_index"])
+
+        if annotation_type == "coco":
+            return bbox_corner_to_center(
+                [first_row[0], first_row[1], last_row[2], last_row[3]])
+        else:
+            return [first_row[0], first_row[1], last_row[2], last_row[3]]
+    else:
+        if annotation_type == "coco":
+            return bbox_corner_to_center(special_string_2_list(
+                df.iloc[0]["change_trace_index"]))
+        else:
+            return special_string_2_list(df.iloc[0]["change_trace_index"])
+
+
+def get_area(width, height):
+    return width * height
+
+
+def get_drift_id(drift_type):
+    try:
+        drift_id = cfg.DRIFT_TYPES.index(drift_type)
+    except Exception:
+        f"Drift type not specified in config - drift types: {cfg.DRIFT_TYPES}"
+    return drift_id
+
+
+def generate_annotations(drift_info, dir):
+    
+    log_names = pd.unique(drift_info["log_name"])
+    annotations = []
+    id = 0
+    
+    for log_name in log_names:
+        log_annotation = {}
+        log_info = drift_info.loc[drift_info["log_name"] == log_name]
+        drift_ids = pd.unique(log_info["drift_or_noise_id"])
+        for drift_id in drift_ids:
+            drift = log_info.loc[log_info["drift_or_noise_id"] == drift_id]
+            drift_type = pd.unique(drift["drift_type"])[0]
+            image_id = log_name.split(".")[0]
+            category_id = get_drift_id(drift_type)
+            bbox = get_bbox_as_list(drift)
+            area = get_area(width=bbox[2],height=bbox[3])
+            log_annotation = {
+                "id": id,
+                "image_id": image_id,
+                "category_id": category_id,
+                "label": drift_type,
+                "bbox": bbox,
+                "area": area}
+            annotations.append(log_annotation)
+            id += 1
+
+    annotations_path = os.path.join(dir, "annotations.json")
+    with open(annotations_path, "w", encoding='utf-8') as file:
+        json.dump(annotations, file)
+        
+        
+def read_annotations(dir):
+    path = os.path.join(dir, "annotations.json")
+    with open(path) as file:
+        annotations = json.load(file)
+    return annotations
 
 
 def get_drift_info() -> pd.DataFrame:

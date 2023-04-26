@@ -97,7 +97,7 @@ def get_collection_information() -> pl.DataFrame:
     return pl.read_csv(path)
 
 
-def matrix_to_img(matrix, number, drift_type, exp_path, mode="color"):
+def matrix_to_img(matrix, number, drift_type, exp_path, log_name=None, mode="color"):
 
     if mode == "color":
         # Get the color map by name:
@@ -109,29 +109,32 @@ def matrix_to_img(matrix, number, drift_type, exp_path, mode="color"):
 
     elif mode == "gray":
         im = Image.fromarray(matrix).convert("RGB")
-
-    if cfg.MULTILABEL:
-        im.save(os.path.join(exp_path, f"{number}_{drift_type}.png"))
-    else:
-        # save image with specified drift type
-        if drift_type == "gradual":
-            im.save(os.path.join(exp_path,
-                    "gradual", f"gradual_{number}.png"))
-        elif drift_type == "sudden":
-            im.save(os.path.join(exp_path,
-                    "sudden", f"sudden_{number}.png"))
-        elif drift_type == "incremental":
-            im.save(os.path.join(exp_path,
-                    "incremental", f"incremental_{number}.png"))
-        elif drift_type == "recurring":
-            im.save(os.path.join(exp_path,
-                    "recurring", f"recurring_{number}.png"))
-        elif drift_type == "no_drift":
-            im.save(os.path.join(exp_path,
-                    "no_drift", f"no_drift_{number}.png"))
-        elif drift_type == "eval":
-            im.save(os.path.join(exp_path,
-                    "eval", f"eval_{number}.png"))
+    
+    if cfg.OBJECT_DETECTION:
+        im.save(os.path.join(exp_path, f"{log_name}.png"))
+    else:    
+        if cfg.MULTILABEL:
+            im.save(os.path.join(exp_path, f"{number}_{drift_type}.png"))
+        else:
+            # save image with specified drift type
+            if drift_type == "gradual":
+                im.save(os.path.join(exp_path,
+                        "gradual", f"gradual_{number}.png"))
+            elif drift_type == "sudden":
+                im.save(os.path.join(exp_path,
+                        "sudden", f"sudden_{number}.png"))
+            elif drift_type == "incremental":
+                im.save(os.path.join(exp_path,
+                        "incremental", f"incremental_{number}.png"))
+            elif drift_type == "recurring":
+                im.save(os.path.join(exp_path,
+                        "recurring", f"recurring_{number}.png"))
+            elif drift_type == "no_drift":
+                im.save(os.path.join(exp_path,
+                        "no_drift", f"no_drift_{number}.png"))
+            elif drift_type == "eval":
+                im.save(os.path.join(exp_path,
+                        "eval", f"eval_{number}.png"))
 
 
 def get_timestamp():
