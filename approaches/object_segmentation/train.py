@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import config as cfg
+import argparse
 
 from official.core import exp_factory
 from official.vision.serving import export_saved_model_lib
@@ -180,6 +181,17 @@ def show_batch(exp_config, n_examples=4):
 
 
 if __name__ == "__main__":
+    
+    parser = argparse.ArgumentParser("train")
+    parser.add_argument("--gpu_devices", dest="gpu_devices", 
+                        help="Specify which CUDA devices to use.",
+                        default="",
+                        type=str)
+    args = parser.parse_args()
+
+    # set cuda devices
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_devices
 
     exp_config = train()
 
