@@ -1,8 +1,9 @@
 import os
 import glob
 import tensorflow as tf
-import cnn_image_detection.utils.config as cfg
+import config as cfg
 import cnn_image_detection.utils.utilities as utils
+import official.vision.data.create_coco_tf_record as coco
 
 
 """ 
@@ -18,7 +19,7 @@ Note: Most of the following functions were adapted from the source code as requi
 def image_feature(value):
     """Returns a bytes_list from a string / byte."""
     return tf.train.Feature(
-        bytes_list=tf.train.BytesList(value=[tf.io.encode_png(value).numpy()])
+        bytes_list=tf.train.BytesList(value=[tf.io.encode_jpeg(value).numpy()])
     )
 
 
@@ -50,7 +51,11 @@ def create_example(image, path, example):
         "bbox": float_feature_list(example["bbox"]),
         "category_id": int64_feature(example["category_id"]),
         "id": int64_feature(example["id"]),
-        "image_id": bytes_feature(example["image_id"]),
+        "image_id": int64_feature(example["image_id"]),
+        "iscrowd": int64_feature(example["iscrowd"]),
+        "ignore": int64_feature(example["ignore"]),
+        #TODO: fix segmentation list
+        "segmentation": float_feature_list(example["segmentation"]),
     }
     return tf.train.Example(features=tf.train.Features(feature=feature))
 
@@ -63,16 +68,19 @@ def parse_tfrecord_fn(example):
         "bbox": tf.io.VarLenFeature(tf.float32),
         "category_id": tf.io.FixedLenFeature([], tf.int64),
         "id": tf.io.FixedLenFeature([], tf.int64),
-        "image_id": tf.io.FixedLenFeature([], tf.string),
+        "image_id": tf.io.FixedLenFeature([], tf.int64),
+        "iscrowd": tf.io.FixedLenFeature([], tf.int64),
+        "ignore": tf.io.FixedLenFeature([], tf.int64),
+        "segmentation": tf.io.VarLenFeature(tf.float32),
     }
     example = tf.io.parse_single_example(example, feature_description)
-    example["image"] = tf.io.decode_png(example["image"], channels=3)
+    example["image"] = tf.io.decode_jpeg(example["image"], channels=3)
     example["bbox"] = tf.sparse.to_dense(example["bbox"])
     return example
 
 
 def generate_tfr_data(img_dir, annotations):
-    num_samples = len(glob.glob(os.path.join(img_dir,"*.png")))
+    num_samples = len(glob.glob(os.path.join(img_dir,"*.jpg")))
     
     num_tfrecords = len(annotations) // num_samples
     if len(annotations) % num_samples:
@@ -82,6 +90,8 @@ def generate_tfr_data(img_dir, annotations):
 
     if not os.path.exists(tfr_dir):
         os.makedirs(tfr_dir) 
+        
+    annotations = annotations["annotations"]
 
     for tfrec_num in range(num_tfrecords):
 
@@ -92,15 +102,15 @@ def generate_tfr_data(img_dir, annotations):
             tfr_dir + "/file_%.2i-%i.tfrec" % (tfrec_num, len(samples))
         ) as writer:
             for sample in samples:
-                image_path = f"{img_dir}/{sample['image_id']}.png"
-                image = tf.io.decode_png(tf.io.read_file(image_path))
+                image_path = f"{img_dir}/{sample['image_id']}.jpg"
+                image = tf.io.decode_jpeg(tf.io.read_file(image_path))
                 example = create_example(image, image_path, sample)
                 writer.write(example.SerializeToString())
 
 
 def prepare_sample(features):
     image = tf.image.resize(features["image"], size=cfg.IMAGE_SIZE)
-    return image, features["category_id"], features["bbox"]
+    return image, features["category_id"], features["bbox"], features["image_id"]
 
 
 def get_tfr_dataset(filenames, batch_size=cfg.BATCH_SIZE):
@@ -119,3 +129,17 @@ def get_tfr_filenames(dir):
     path = os.path.join(dir, "*.tfrec")
     filenames = tf.io.gfile.glob(path)
     return filenames
+
+
+def generate_tfr_data_from_coco_annotations(annotations, img_dir):
+
+    tfr_dir = os.path.join(cfg.TFR_RECORDS_DIR,
+                           f"tfr_data_{utils.get_timestamp()}")
+
+    if not os.path.exists(tfr_dir):
+        os.makedirs(tfr_dir)
+
+    coco._create_tf_record_from_coco_annotations(images_info_file=annotations,
+                                                 image_dirs=img_dir,
+                                                 output_path=tfr_dir,
+                                                 num_shards=cfg.N_SHARDS)

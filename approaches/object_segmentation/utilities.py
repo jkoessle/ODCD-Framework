@@ -1,7 +1,8 @@
 import os
 import json
 import pandas as pd
-import cnn_image_detection.utils.config as cfg
+import config as cfg
+from PIL import Image
 
 
 def get_event_log_paths():
@@ -154,37 +155,85 @@ def get_drift_id(drift_type):
     return drift_id
 
 
-def generate_annotations(drift_info, dir):
-    
+def get_segmentation(bbox):
+    bbox = bbox_center_to_corner(bbox)
+    xmin = bbox[0]
+    ymin = bbox[1]
+    xmax = bbox[2]
+    ymax = bbox[3]
+    segmentation = [[xmin, ymin],
+                    [xmax, ymin],
+                    [xmax, ymax],
+                    [xmin, ymax]]
+    return list([segmentation])
+
+def generate_annotations(drift_info, dir, log_matching):
+
     log_names = pd.unique(drift_info["log_name"])
-    annotations = []
-    id = 0
+
+    categories = [
+        {"supercategory": "drift", "id": 0, "name": "sudden"},
+        {"supercategory": "drift", "id": 1, "name": "gradual"},
+        {"supercategory": "drift", "id": 2, "name": "incremental"},
+        {"supercategory": "drift", "id": 3, "name": "recurring"}
+    ]
     
+    anno_file = {
+        "categories": categories,
+        "images": [],
+        "annotations": []
+    }
+
+    annotation_id = 0
+    img_id = 0
+
     for log_name in log_names:
         log_annotation = {}
         log_info = drift_info.loc[drift_info["log_name"] == log_name]
         drift_ids = pd.unique(log_info["drift_or_noise_id"])
+        
+        img_id = log_matching[log_name]
+        img_name = str(img_id) + ".jpg"
+        img_path = os.path.join(dir, img_name)
+
+        img = Image.open(img_path)
+        width, height = img.size
+        log_img = {
+            "file_name": img_name,
+            "height": height,
+            "width": width,
+            "id": img_id
+        }
+
+        anno_file["images"].append(log_img)
+
         for drift_id in drift_ids:
             drift = log_info.loc[log_info["drift_or_noise_id"] == drift_id]
             drift_type = pd.unique(drift["drift_type"])[0]
-            image_id = log_name.split(".")[0]
+            
             category_id = get_drift_id(drift_type)
             bbox = get_bbox_as_list(drift)
-            area = get_area(width=bbox[2],height=bbox[3])
+            area = get_area(width=bbox[2], height=bbox[3])
+            segmentation = get_segmentation(bbox)
             log_annotation = {
-                "id": id,
-                "image_id": image_id,
+                "id": annotation_id,
+                "image_id": img_id,
                 "category_id": category_id,
                 "label": drift_type,
                 "bbox": bbox,
-                "area": area}
-            annotations.append(log_annotation)
-            id += 1
+                "area": area,
+                "iscrowd": 0,
+                "ignore": 0,
+                "segmentation": segmentation}
+            anno_file["annotations"].append(log_annotation)
+            annotation_id += 1
+            
+        img_id += 1
 
     annotations_path = os.path.join(dir, "annotations.json")
     with open(annotations_path, "w", encoding='utf-8') as file:
-        json.dump(annotations, file)
-        
+        json.dump(anno_file, file)
+
         
 def read_annotations(dir):
     path = os.path.join(dir, "annotations.json")

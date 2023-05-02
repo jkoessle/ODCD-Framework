@@ -75,7 +75,8 @@ if __name__ == "__main__":
             callbacks.append(early_stopping)
 
         if cfg.TENSORBOARD:
-            log_dir = f"tensorboard_logs/tb_log_{date}_{cfg.MODEL_SELECTION}"
+            log_dir = os.path.join(f"{cfg.TENSORBOARD_DIR}",
+                                   f"tb_log_{date}_{cfg.MODEL_SELECTION}")
             tf_board = tf.keras.callbacks.TensorBoard(
                 log_dir=log_dir, histogram_freq=1)
             callbacks.append(tf_board)

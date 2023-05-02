@@ -1,8 +1,9 @@
+import os
 import numpy as np
 import pandas as pd
 import cnn_image_detection.utils.utilities as cnn_utils
 import object_segmentation.utilities as seg_utils
-import cnn_image_detection.utils.config as cfg
+import config as cfg
 import object_segmentation.datasets as data
 from pm4py import discover_dfg_typed
 from numpy import linalg as LA
@@ -20,11 +21,13 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
 
     # get all paths and file names of event logs
     log_files = cnn_utils.get_event_log_paths()
-    
+
     drift_info = seg_utils.extract_drift_information()
 
     # incrementally store number of log based on drift type - for file naming purposes
     drift_number = 1
+
+    log_matching = {}
 
     # iterate through log files
     for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs",
@@ -32,50 +35,52 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
 
         # load event log
         event_log = cnn_utils.import_event_log(path=path, name=name)
-        
+
         # if the log contains incomplete traces, the log is filtered
         filtered_log = cnn_utils.filter_complete_events(event_log)
-        
+
         # TODO outsource to function - save info as csv/dataframe
         if p_mode == "train":
-            
+
             log_info = drift_info.loc[drift_info["log_name"] == name]
-            
+
             drift_types = pd.unique(log_info["drift_type"])
-            
+
             drift_type = "_".join(drift_types)
-            
+
         elif p_mode == "eval":
             drift_type = name
 
         windowed_dfg_matrices, borders = log_to_windowed_dfg_count(
             filtered_log, n_windows)
-        
+
         drift_info = seg_utils.update_trace_indices(drift_info, name, borders)
 
         # get similarity matrix
         sim_matrix = similarity_calculation(windowed_dfg_matrices)
-        
+
         log_name = name.split(".")[0]
+
+        log_matching[name] = drift_number
 
         # save matrix as image
         cnn_utils.matrix_to_img(matrix=sim_matrix, number=drift_number,
-                            drift_type=drift_type, exp_path=cfg.DEFAULT_DATA_DIR,
-                            log_name=log_name, mode="color")
-        
+                                drift_type=drift_type, exp_path=cfg.DEFAULT_DATA_DIR,
+                                log_name=log_name, mode="color")
+
         # increment log number
-        drift_number  += 1
-        
-    # print(drift_info)
-    
-    # for testing purposes
-    # drift_info.to_csv("drift_info.csv")
-    
-    seg_utils.generate_annotations(drift_info, dir=cfg.DEFAULT_DATA_DIR)
+        drift_number += 1
+
+    if cfg.DEBUG:
+        drift_info.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "drift_info.csv"))
+
+    seg_utils.generate_annotations(drift_info, dir=cfg.DEFAULT_DATA_DIR,
+                                   log_matching=log_matching)
     annotations = seg_utils.read_annotations(dir=cfg.DEFAULT_DATA_DIR)
-    data.generate_tfr_data(img_dir=cfg.DEFAULT_DATA_DIR, annotations=annotations)
-    
-    
+
+    data.generate_tfr_data_from_coco_annotations(annotations=annotations,
+                                                 img_dir=cfg.DEFAULT_DATA_DIR)
+
 
 def log_to_windowed_dfg_count(event_log, n_windows):
 
@@ -138,8 +143,8 @@ def log_to_windowed_dfg_count(event_log, n_windows):
         dfg_graphs.append(dfg_matrix_df)
         # start_act.append(sa)
         # end_act.append(ea)
-        
-        borders.append((left_boundary,right_boundary))
+
+        borders.append((left_boundary, right_boundary))
 
         left_boundary = right_boundary
         right_boundary += window_size
@@ -153,7 +158,8 @@ def log_to_windowed_dfg_count(event_log, n_windows):
         f"Number of relations in all windows: {freq_count}"
     )
 
-    return np.array(dfg_graphs), borders  # , np.array(start_act), np.array(end_act)
+    # , np.array(start_act), np.array(end_act)
+    return np.array(dfg_graphs), borders
 
 
 def similarity_calculation(windowed_dfg):

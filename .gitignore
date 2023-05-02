@@ -135,8 +135,10 @@ logs/*
 
 # Intermediate results
 *png
+*jpg
 annotations.json
 *.tfrec
+*.tfrecord
 
 # misc
 test.py

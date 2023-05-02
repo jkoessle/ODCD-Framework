@@ -111,7 +111,7 @@ def matrix_to_img(matrix, number, drift_type, exp_path, log_name=None, mode="col
         im = Image.fromarray(matrix).convert("RGB")
     
     if cfg.OBJECT_DETECTION:
-        im.save(os.path.join(exp_path, f"{log_name}.png"))
+        im.save(os.path.join(exp_path, f"{number}.jpg"))
     else:    
         if cfg.MULTILABEL:
             im.save(os.path.join(exp_path, f"{number}_{drift_type}.png"))
