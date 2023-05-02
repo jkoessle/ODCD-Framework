@@ -1,7 +1,7 @@
 import os
 import json
 import pandas as pd
-import config as cfg
+from . import config as cfg
 from PIL import Image
 
 
@@ -242,14 +242,14 @@ def read_annotations(dir):
     return annotations
 
 
-def get_drift_info() -> pd.DataFrame:
-    path = os.path.join(cfg.DEFAULT_LOG_DIR, "drift_info.csv")
+def get_drift_info(dir) -> pd.DataFrame:
+    path = os.path.join(dir, "drift_info.csv")
     return pd.read_csv(path)
 
 
-def extract_drift_information() -> pd.DataFrame:
+def extract_drift_information(dir) -> pd.DataFrame:
 
-    pd_df = get_drift_info()
+    pd_df = get_drift_info(dir)
 
     indices = pd_df[pd_df["drift_sub_attribute"] == "change_trace_index"]
     indices = indices[["log_name", "drift_or_noise_id",

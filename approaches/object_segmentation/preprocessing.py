@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import cnn_image_detection.utils.utilities as cnn_utils
 import object_segmentation.utilities as seg_utils
-import config as cfg
-import object_segmentation.datasets as data
+from . import config as cfg
+# import object_segmentation.datasets as data
 from pm4py import discover_dfg_typed
 from numpy import linalg as LA
 from scipy import spatial
@@ -20,9 +20,9 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
     cfg.DEFAULT_DATA_DIR = cnn_utils.create_multilabel_experiment()
 
     # get all paths and file names of event logs
-    log_files = cnn_utils.get_event_log_paths()
+    log_files = cnn_utils.get_event_log_paths(cfg.DEFAULT_LOG_DIR)
 
-    drift_info = seg_utils.extract_drift_information()
+    drift_info = seg_utils.extract_drift_information(cfg.DEFAULT_LOG_DIR)
 
     # incrementally store number of log based on drift type - for file naming purposes
     drift_number = 1
@@ -76,10 +76,9 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
 
     seg_utils.generate_annotations(drift_info, dir=cfg.DEFAULT_DATA_DIR,
                                    log_matching=log_matching)
-    annotations = seg_utils.read_annotations(dir=cfg.DEFAULT_DATA_DIR)
+    # annotations = seg_utils.read_annotations(dir=cfg.DEFAULT_DATA_DIR)
 
-    data.generate_tfr_data_from_coco_annotations(annotations=annotations,
-                                                 img_dir=cfg.DEFAULT_DATA_DIR)
+    # data.generate_tfr_data_from_coco_annotations(img_dir=cfg.DEFAULT_DATA_DIR)
 
 
 def log_to_windowed_dfg_count(event_log, n_windows):
@@ -232,3 +231,8 @@ def calc_distance_norm(matrix_1, matrix_2, option="fro"):
         dist_value = LA.norm(diff, "fro")
 
     return dist_value
+
+
+if __name__ == "__main__":
+    
+    preprocessing_pipeline_multilabel(cfg.N_WINDOWS)

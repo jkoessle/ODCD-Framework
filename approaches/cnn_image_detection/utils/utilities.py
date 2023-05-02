@@ -18,14 +18,14 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from itertools import combinations, chain, tee
 
 
-def get_event_log_paths():
+def get_event_log_paths(dir):
     list_of_files = {}
-    for dir_path, dir_names, filenames in os.walk(cfg.DEFAULT_LOG_DIR):
+    for dir_path, dir_names, filenames in os.walk(dir):
         for filename in filenames:
             if filename.endswith('.xes'):
                 list_of_files[filename] = dir_path
 
-    assert len(list_of_files) > 0, f"{cfg.DEFAULT_LOG_DIR} is empty"
+    assert len(list_of_files) > 0, f"{dir} is empty"
 
     return list_of_files
 

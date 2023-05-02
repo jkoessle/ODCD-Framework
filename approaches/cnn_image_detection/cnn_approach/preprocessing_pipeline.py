@@ -18,7 +18,7 @@ def preprocessing_pipeline(n_windows=100, p_mode="train"):
     cfg.DEFAULT_DATA_DIR = utils.create_experiment()
 
     # get all paths and file names of event logs
-    log_files = utils.get_event_log_paths()
+    log_files = utils.get_event_log_paths(cfg.DEFAULT_LOG_DIR)
 
     # incrementally store number of log based on drift type - for file naming purposes
     log_numbers = defaultdict(lambda: 0)

@@ -1,7 +1,7 @@
 import os
 import glob
 import tensorflow as tf
-import config as cfg
+from . import config as cfg
 import cnn_image_detection.utils.utilities as utils
 import official.vision.data.create_coco_tf_record as coco
 
@@ -131,7 +131,9 @@ def get_tfr_filenames(dir):
     return filenames
 
 
-def generate_tfr_data_from_coco_annotations(annotations, img_dir):
+def generate_tfr_data_from_coco_annotations(img_dir):
+    
+    annotations = os.path.join(img_dir, "annotations.json")
 
     tfr_dir = os.path.join(cfg.TFR_RECORDS_DIR,
                            f"tfr_data_{utils.get_timestamp()}")
