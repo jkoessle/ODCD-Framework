@@ -149,7 +149,7 @@ def get_area(width, height):
 
 def get_drift_id(drift_type):
     try:
-        drift_id = cfg.DRIFT_TYPES.index(drift_type)
+        drift_id = cfg.DRIFT_TYPES.index(drift_type) + 1
     except Exception:
         f"Drift type not specified in config - drift types: {cfg.DRIFT_TYPES}"
     return drift_id
@@ -172,10 +172,10 @@ def generate_annotations(drift_info, dir, log_matching):
     log_names = pd.unique(drift_info["log_name"])
 
     categories = [
-        {"supercategory": "drift", "id": 0, "name": "sudden"},
-        {"supercategory": "drift", "id": 1, "name": "gradual"},
-        {"supercategory": "drift", "id": 2, "name": "incremental"},
-        {"supercategory": "drift", "id": 3, "name": "recurring"}
+        {"supercategory": "drift", "id": 1, "name": "sudden"},
+        {"supercategory": "drift", "id": 2, "name": "gradual"},
+        {"supercategory": "drift", "id": 3, "name": "incremental"},
+        {"supercategory": "drift", "id": 4, "name": "recurring"}
     ]
     
     anno_file = {

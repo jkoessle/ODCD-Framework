@@ -124,19 +124,19 @@ def train(train_data_path=cfg.TRAIN_DATA_DIR, validation_data_path=cfg.EVAL_DATA
 def get_ex_decoder():
     category_index = {
         1: {
-            'id': 0,
+            'id': 1,
             'name': 'sudden'
         },
         2: {
-            'id': 1,
+            'id': 2,
             'name': 'gradual'
         },
         3: {
-            'id': 2,
+            'id': 3,
             'name': 'incremental'
         },
         4: {
-            'id': 3,
+            'id': 4,
             'name': 'recurring'
         }
     }
@@ -145,12 +145,12 @@ def get_ex_decoder():
     return category_index, tf_ex_decoder
 
 
-def show_batch(exp_config, n_examples=4):
+def show_batch(path, n_examples=3):
 
     category_index, tf_ex_decoder = get_ex_decoder()
 
     raw_data = tf.data.TFRecordDataset(
-        exp_config.task.train_data.input_path).shuffle(
+        path).shuffle(
         buffer_size=20).take(n_examples)
 
     plt.figure(figsize=(20, 20))
@@ -174,10 +174,10 @@ def show_batch(exp_config, n_examples=4):
             instance_masks=None,
             line_thickness=4)
 
-        # plt.imshow(image)
+        plt.imshow(image)
         plt.axis('off')
         plt.title(f'Image-{i+1}')
-    plt.imsave(os.path.join(cfg.DEFAULT_OUTPUT_DIR, "batch.png"))
+    plt.savefig(os.path.join(cfg.DEFAULT_OUTPUT_DIR, "batch.png"))
 
 
 if __name__ == "__main__":
@@ -195,4 +195,4 @@ if __name__ == "__main__":
 
     exp_config = train()
 
-    show_batch(exp_config=exp_config)
+    show_batch(cfg.TRAIN_DATA_DIR)
