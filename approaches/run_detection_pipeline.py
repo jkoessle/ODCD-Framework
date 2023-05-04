@@ -1,5 +1,5 @@
 import object_segmentation.preprocessing as pp
-import object_segmentation.config as cfg
+import object_segmentation.utils.config as cfg
 
 
 if __name__ == "__main__":
