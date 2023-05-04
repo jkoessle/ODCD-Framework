@@ -13,6 +13,11 @@ from official.vision.serving import export_saved_model_lib
 
 def train(train_data_path=cfg.TRAIN_DATA_DIR, validation_data_path=cfg.EVAL_DATA_DIR,
           model_dir=cfg.MODEL_PATH, output_dir=cfg.DEFAULT_OUTPUT_DIR):
+    
+    timestamp = utils.get_timestamp()
+    
+    model_dir = os.path.join(model_dir, timestamp)
+    output_dir = os.path.join(output_dir, timestamp)
 
     exp_config = exp_factory.get_exp_config('retinanet_resnetfpn_coco')
 
@@ -123,4 +128,4 @@ if __name__ == "__main__":
 
     model, eval_logs = train()
 
-    utils.visualize_batch(cfg.TRAIN_DATA_DIR, mode="train")
+    # utils.visualize_batch(cfg.TRAIN_DATA_DIR, mode="train")

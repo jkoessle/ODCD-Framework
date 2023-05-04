@@ -1,5 +1,7 @@
 import os
 import json
+import datetime
+import pytz
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -465,3 +467,9 @@ def build_inputs_for_object_detection(image, input_image_size):
         aug_scale_min=1.0,
         aug_scale_max=1.0)
     return image
+
+
+def get_timestamp():
+    europe = pytz.timezone("Europe/Berlin")
+    timestamp = datetime.datetime.now(europe).strftime("%Y%m%d-%H%M%S")
+    return timestamp
