@@ -1,15 +1,12 @@
 import tensorflow_models as tfm
 import tensorflow as tf
-import matplotlib.pyplot as plt
-import numpy as np
 import os
 import config as cfg
 import argparse
 
 from official.core import exp_factory
 from official.vision.serving import export_saved_model_lib
-from official.vision.utils.object_detection import visualization_utils
-from official.vision.dataloaders.tf_example_decoder import TfExampleDecoder
+from . import utilities as utils
 
 
 def train(train_data_path=cfg.TRAIN_DATA_DIR, validation_data_path=cfg.EVAL_DATA_DIR,
@@ -107,8 +104,6 @@ def train(train_data_path=cfg.TRAIN_DATA_DIR, validation_data_path=cfg.EVAL_DATA
         params=exp_config,
         model_dir=model_dir,
         run_post_eval=True)
-    
-    print(eval_logs)
 
     export_saved_model_lib.export_inference_graph(
         input_type='image_tensor',
@@ -118,72 +113,13 @@ def train(train_data_path=cfg.TRAIN_DATA_DIR, validation_data_path=cfg.EVAL_DATA
         checkpoint_path=tf.train.latest_checkpoint(model_dir),
         export_dir=output_dir)
 
-    return exp_config
-
-
-def get_ex_decoder():
-    category_index = {
-        1: {
-            'id': 1,
-            'name': 'sudden'
-        },
-        2: {
-            'id': 2,
-            'name': 'gradual'
-        },
-        3: {
-            'id': 3,
-            'name': 'incremental'
-        },
-        4: {
-            'id': 4,
-            'name': 'recurring'
-        }
-    }
-    tf_ex_decoder = TfExampleDecoder()
-
-    return category_index, tf_ex_decoder
-
-
-def show_batch(path, n_examples=3):
-
-    category_index, tf_ex_decoder = get_ex_decoder()
-
-    raw_data = tf.data.TFRecordDataset(
-        path).shuffle(
-        buffer_size=20).take(n_examples)
-
-    plt.figure(figsize=(20, 20))
-    use_normalized_coordinates = True
-    min_score_thresh = 0.30
-    for i, serialized_example in enumerate(raw_data):
-        plt.subplot(1, 3, i + 1)
-        decoded_tensors = tf_ex_decoder.decode(serialized_example)
-        image = decoded_tensors['image'].numpy().astype('uint8')
-        scores = np.ones(shape=(len(decoded_tensors['groundtruth_boxes'])))
-        visualization_utils.visualize_boxes_and_labels_on_image_array(
-            image,
-            decoded_tensors['groundtruth_boxes'].numpy(),
-            decoded_tensors['groundtruth_classes'].numpy().astype('int'),
-            scores,
-            category_index=category_index,
-            use_normalized_coordinates=use_normalized_coordinates,
-            max_boxes_to_draw=200,
-            min_score_thresh=min_score_thresh,
-            agnostic_mode=False,
-            instance_masks=None,
-            line_thickness=4)
-
-        plt.imshow(image)
-        plt.axis('off')
-        plt.title(f'Image-{i+1}')
-    plt.savefig(os.path.join(cfg.DEFAULT_OUTPUT_DIR, "batch.png"))
+    return model, eval_logs
 
 
 if __name__ == "__main__":
-    
+
     parser = argparse.ArgumentParser("train")
-    parser.add_argument("--gpu_devices", dest="gpu_devices", 
+    parser.add_argument("--gpu_devices", dest="gpu_devices",
                         help="Specify which CUDA devices to use.",
                         default="",
                         type=str)
@@ -193,6 +129,6 @@ if __name__ == "__main__":
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_devices
 
-    exp_config = train()
+    model, eval_logs = train()
 
-    show_batch(cfg.TRAIN_DATA_DIR)
+    utils.visualize_batch(cfg.TRAIN_DATA_DIR, mode="train")
