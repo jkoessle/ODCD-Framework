@@ -373,7 +373,7 @@ def visualize_predictions(path, mode, model, n_examples=3):
         rows += 1
     pos = range(1, n_examples + 1)
 
-    input_image_size = cfg.TARGETSIZE
+    input_image_size = cfg.IMAGE_SIZE
     model_fn = model.signatures['serving_default']
 
     category_index, tf_ex_decoder = get_ex_decoder()
@@ -408,6 +408,19 @@ def visualize_predictions(path, mode, model, n_examples=3):
             agnostic_mode=False,
             instance_masks=None,
             line_thickness=2)
+        visualization_utils.visualize_boxes_and_labels_on_image_array(
+            image_np,
+            decoded_tensors['groundtruth_boxes'].numpy(),
+            decoded_tensors['groundtruth_classes'].numpy().astype('int'),
+            scores=None,
+            category_index=category_index,
+            use_normalized_coordinates=True,
+            max_boxes_to_draw=200,
+            min_score_thresh=min_score_thresh,
+            agnostic_mode=False,
+            instance_masks=None,
+            line_thickness=2)
+        
         plt.imshow(image_np)
         plt.axis('off')
 

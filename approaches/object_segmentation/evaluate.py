@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-from . import config as cfg
-from . import utilities as utils
+import utils.config as cfg
+import utils.utilities as utils
 
 
 def evaluate(model):
@@ -15,7 +15,7 @@ if __name__ == "__main__":
 
     model = tf.saved_model.load(cfg.DEFAULT_OUTPUT_DIR)
 
-    utils.visualize_batch(cfg.DEFAULT_OUTPUT_DIR, mode="validation")
-    utils.visualize_predictions(path=cfg.DEFAULT_OUTPUT_DIR,
+    utils.visualize_batch(cfg.EVAL_DATA_DIR, mode="validation")
+    utils.visualize_predictions(path=cfg.EVAL_DATA_DIR,
                                 mode="validation",
                                 model=model)
