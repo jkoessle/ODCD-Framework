@@ -9,8 +9,7 @@ import utils.utilities as utils
 from official.vision.serving import export_saved_model_lib
 
 
-def train(train_data_path=cfg.TRAIN_DATA_DIR, validation_data_path=cfg.EVAL_DATA_DIR,
-          model_dir=cfg.MODEL_PATH, output_dir=cfg.DEFAULT_OUTPUT_DIR):
+def train(model_dir=cfg.MODEL_PATH, output_dir=cfg.DEFAULT_OUTPUT_DIR):
 
     timestamp = utils.get_timestamp()
 

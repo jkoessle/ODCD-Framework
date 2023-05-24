@@ -487,6 +487,9 @@ def get_model_config(model_dir):
     if cfg.MODEL_SELECTION == "retinanet_spinenet_coco":
         exp_config.task.model.backbone.spinenet.model_id = cfg.SPINENET_ID
         exp_config.task.model.anchor.anchor_size = 4
+        if cfg.SPINENET_ID == "190":
+            exp_config.task.model.head.num_convs = 7
+            exp_config.task.model.head.num_filters = 512
 
     # Backbone config
     exp_config.task.freeze_backbone = False

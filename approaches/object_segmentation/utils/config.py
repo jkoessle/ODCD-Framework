@@ -47,14 +47,17 @@ SGD_CLIPNORM = 10.0
 ADAM_BETA_1 = 0.9
 ADAM_BETA_2 = 0.999
 
-STEPWISE_BOUNDARIES = [(FACTOR*0.95) * STEPS_PER_LOOP,
-                       (FACTOR*0.98) * STEPS_PER_LOOP]
-STEPWISE_VALUES = [0.32, 0.032, 0.0032]
+STEPWISE_BOUNDARIES = [0.95 * TRAIN_STEPS,
+                       0.98 * TRAIN_STEPS]
+STEPWISE_VALUES = [0.32 * TRAIN_BATCH_SIZE / 256.0,
+                   0.032 * TRAIN_BATCH_SIZE / 256.0,
+                   0.0032 * TRAIN_BATCH_SIZE / 256.0]
+
 
 # Possible Models:
 # retinanet_resnetfpn_coco, retinanet_spinenet_coco
 MODEL_SELECTION = "retinanet_spinenet_coco"
-SPINENET_ID = "143"
+SPINENET_ID = "190"
 
 
 ##### OBJECT DETECTION CONFIG #####
