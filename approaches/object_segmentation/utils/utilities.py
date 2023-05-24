@@ -502,14 +502,14 @@ def get_model_config():
     # Training data config
     exp_config.task.train_data.input_path = cfg.TRAIN_DATA_DIR
     exp_config.task.train_data.dtype = 'float32'
-    exp_config.task.train_data.global_batch_size = cfg.BATCH_SIZE
+    exp_config.task.train_data.global_batch_size = cfg.TRAIN_BATCH_SIZE
     exp_config.task.train_data.parser.aug_scale_max = 1.0
     exp_config.task.train_data.parser.aug_scale_min = 1.0
 
     # Validation data config
     exp_config.task.validation_data.input_path = cfg.EVAL_DATA_DIR
     exp_config.task.validation_data.dtype = 'float32'
-    exp_config.task.validation_data.global_batch_size = cfg.BATCH_SIZE
+    exp_config.task.validation_data.global_batch_size = cfg.EVAL_BATCH_SIZE
 
     train_steps = cfg.TRAIN_STEPS
     # steps_per_loop = num_of_training_examples // train_batch_size
@@ -524,6 +524,13 @@ def get_model_config():
     
     # Optimizer and LR config
     exp_config.trainer.optimizer_config.optimizer.type = cfg.OPTIMIZER_TYPE
+    if cfg.OPTIMIZER_TYPE == "sgd":
+        exp_config.trainer.optimizer_config.optimizer.sgd.clipnorm = 10.0
+        exp_config.trainer.optimizer_config.optimizer.sgd.momentum = 0.9
+    elif cfg.OPTIMIZER_TYPE == "adam":
+        exp_config.trainer.optimizer_config.optimizer.adam.beta_1 = 0.9
+        exp_config.trainer.optimizer_config.optimizer.adam.beta_2 = 0.999
+    
     if cfg.LR_DECAY:
         exp_config.trainer.optimizer_config.learning_rate.type = 'cosine'
         exp_config.trainer.optimizer_config.learning_rate.cosine.decay_steps = \
