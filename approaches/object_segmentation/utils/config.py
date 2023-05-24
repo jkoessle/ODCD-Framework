@@ -7,16 +7,17 @@ OBJECT_DETECTION = True
 N_WINDOWS = 100
 DEFAULT_DATA_DIR = "data"
 DEFAULT_LOG_DIR = "logs"
-DRIFT_TYPES = ["sudden","gradual","incremental","recurring"]
+DRIFT_TYPES = ["sudden", "gradual", "incremental", "recurring"]
 
 
 ##### MODEL CONFIG #####
+FACTOR = 500
 TRAIN_EXAMPLES = 1000
 EVAL_EXAMPLES = 500
 TRAIN_BATCH_SIZE = 128
 EVAL_BATCH_SIZE = 4
 STEPS_PER_LOOP = TRAIN_EXAMPLES // TRAIN_BATCH_SIZE
-TRAIN_STEPS = 500 * STEPS_PER_LOOP
+TRAIN_STEPS = FACTOR * STEPS_PER_LOOP
 VAL_STEPS = EVAL_EXAMPLES // EVAL_BATCH_SIZE
 SUMMARY_INTERVAL = STEPS_PER_LOOP
 CP_INTERVAL = STEPS_PER_LOOP
@@ -25,23 +26,38 @@ VAL_INTERVAL = STEPS_PER_LOOP
 IMAGE_SIZE = (256, 256)
 TARGETSIZE = 256
 N_CLASSES = len(DRIFT_TYPES)
+SCALE_MAX = 1.0
+SCALE_MIN = 1.0
 
 HEIGHT, WIDTH = 256, 256
+LR_DECAY = True
 LR_INITIAL = 0.1
 LR_WARMUP = 0.05
-LR_WARMUP_STEPS = 300
+LR_WARMUP_STEPS = 4 * STEPS_PER_LOOP
 
 BEST_CP_DIR = "approaches\\object_segmentation\\model_logging\\best_cp"
 BEST_CP_METRIC = "AP"
 BEST_CP_METRIC_COMP = "higher"
 
 OPTIMIZER_TYPE = "sgd"
+LR_TYPE = "stepwise"
+
+SGD_MOMENTUM = 0.9
+SGD_CLIPNORM = 10.0
+
+ADAM_BETA_1 = 0.9
+ADAM_BETA_2 = 0.999
+
+STEPWISE_BOUNDARIES = [(FACTOR-25) * STEPS_PER_LOOP,
+                       (FACTOR-10) * STEPS_PER_LOOP]
+STEPWISE_VALUES = [0.32, 0.032, 0.0032]
 
 # Possible Models:
 # retinanet_resnetfpn_coco, retinanet_spinenet_coco
 MODEL_SELECTION = "retinanet_spinenet_coco"
+SPINENET_ID = "143"
 
-LR_DECAY = True
+
 
 ##### OBJECT DETECTION CONFIG #####
 N_SHARDS = 1
@@ -52,4 +68,3 @@ MODEL_PATH = "approaches\\object_segmentation\\model_logging"
 TFR_RECORDS_DIR = "approaches\\object_segmentation\\tfr_data"
 DEFAULT_OUTPUT_DIR = "approaches\\object_segmentation\\output"
 TRAINED_MODEL_PATH = ""
-

@@ -485,7 +485,7 @@ def get_model_config():
     
     # Model specific config
     if cfg.MODEL_SELECTION == "retinanet_spinenet_coco":
-        exp_config.task.model.backbone.spinenet.model_id = 143
+        exp_config.task.model.backbone.spinenet.model_id = cfg.SPINENET_ID
 
     # Backbone config
     exp_config.task.freeze_backbone = False
@@ -503,8 +503,8 @@ def get_model_config():
     exp_config.task.train_data.input_path = cfg.TRAIN_DATA_DIR
     exp_config.task.train_data.dtype = 'float32'
     exp_config.task.train_data.global_batch_size = cfg.TRAIN_BATCH_SIZE
-    exp_config.task.train_data.parser.aug_scale_max = 1.0
-    exp_config.task.train_data.parser.aug_scale_min = 1.0
+    exp_config.task.train_data.parser.aug_scale_max = cfg.SCALE_MAX
+    exp_config.task.train_data.parser.aug_scale_min = cfg.SCALE_MIN
 
     # Validation data config
     exp_config.task.validation_data.input_path = cfg.EVAL_DATA_DIR
@@ -525,18 +525,24 @@ def get_model_config():
     # Optimizer and LR config
     exp_config.trainer.optimizer_config.optimizer.type = cfg.OPTIMIZER_TYPE
     if cfg.OPTIMIZER_TYPE == "sgd":
-        exp_config.trainer.optimizer_config.optimizer.sgd.clipnorm = 10.0
-        exp_config.trainer.optimizer_config.optimizer.sgd.momentum = 0.9
+        exp_config.trainer.optimizer_config.optimizer.sgd.clipnorm = cfg.SGD_CLIPNORM
+        exp_config.trainer.optimizer_config.optimizer.sgd.momentum = cfg.SGD_MOMENTUM
     elif cfg.OPTIMIZER_TYPE == "adam":
-        exp_config.trainer.optimizer_config.optimizer.adam.beta_1 = 0.9
-        exp_config.trainer.optimizer_config.optimizer.adam.beta_2 = 0.999
+        exp_config.trainer.optimizer_config.optimizer.adam.beta_1 = cfg.ADAM_BETA_1
+        exp_config.trainer.optimizer_config.optimizer.adam.beta_2 = cfg.ADAM_BETA_2
     
     if cfg.LR_DECAY:
-        exp_config.trainer.optimizer_config.learning_rate.type = 'cosine'
-        exp_config.trainer.optimizer_config.learning_rate.cosine.decay_steps = \
-            train_steps
-        exp_config.trainer.optimizer_config.learning_rate.cosine.\
+        exp_config.trainer.optimizer_config.learning_rate.type = cfg.LR_TYPE
+        if cfg.LR_TYPE == "cosine":
+            exp_config.trainer.optimizer_config.learning_rate.cosine.decay_steps = \
+                train_steps
+            exp_config.trainer.optimizer_config.learning_rate.cosine.\
             initial_learning_rate = cfg.LR_INITIAL
+        elif cfg.LR_TYPE == "stepwise":
+            exp_config.trainer.optimizer_config.learning_rate.stepwise.boundaries = \
+                cfg.STEPWISE_BOUNDARIES
+            exp_config.trainer.optimizer_config.learning_rate.stepwise.values = \
+                cfg.STEPWISE_VALUES
     else:
         exp_config.trainer.optimizer_config.learning_rate.type = 'constant'
         exp_config.trainer.optimizer_config.learning_rate.constant.learning_rate = \
