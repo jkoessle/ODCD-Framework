@@ -12,6 +12,7 @@ from PIL import Image
 from six import BytesIO
 from official.vision.dataloaders.tf_example_decoder import TfExampleDecoder
 from official.vision.utils.object_detection import visualization_utils
+from official.core import exp_factory
 
 from official.vision.ops.preprocess_ops import resize_and_crop_image
 from urllib.request import urlopen
@@ -473,3 +474,75 @@ def get_timestamp():
     europe = pytz.timezone("Europe/Berlin")
     timestamp = datetime.datetime.now(europe).strftime("%Y%m%d-%H%M%S")
     return timestamp
+
+
+
+def get_model_config():
+    exp_config = exp_factory.get_exp_config(cfg.MODEL_SELECTION)
+    
+    # non adjustable for pretrained model
+    IMG_SIZE = [cfg.HEIGHT, cfg.WIDTH, 3]
+    
+    # Model specific config
+    if cfg.MODEL_SELECTION == "retinanet_spinenet_coco":
+        exp_config.task.model.backbone.spinenet.model_id = 143
+
+    # Backbone config
+    exp_config.task.freeze_backbone = False
+    exp_config.task.annotation_file = ''
+    exp_config.task.init_checkpoint = ''
+
+    # Model config
+    exp_config.task.model.input_size = IMG_SIZE
+    exp_config.task.model.num_classes = cfg.N_CLASSES + 1
+    exp_config.task.model.detection_generator. \
+        tflite_post_processing.max_classes_per_detection = \
+        exp_config.task.model.num_classes
+
+    # Training data config
+    exp_config.task.train_data.input_path = cfg.TRAIN_DATA_DIR
+    exp_config.task.train_data.dtype = 'float32'
+    exp_config.task.train_data.global_batch_size = cfg.BATCH_SIZE
+    exp_config.task.train_data.parser.aug_scale_max = 1.0
+    exp_config.task.train_data.parser.aug_scale_min = 1.0
+
+    # Validation data config
+    exp_config.task.validation_data.input_path = cfg.EVAL_DATA_DIR
+    exp_config.task.validation_data.dtype = 'float32'
+    exp_config.task.validation_data.global_batch_size = cfg.BATCH_SIZE
+
+    train_steps = cfg.TRAIN_STEPS
+    # steps_per_loop = num_of_training_examples // train_batch_size
+    exp_config.trainer.steps_per_loop = cfg.STEPS_PER_LOOP
+
+    exp_config.trainer.summary_interval = cfg.SUMMARY_INTERVAL
+    exp_config.trainer.checkpoint_interval = cfg.CP_INTERVAL
+    exp_config.trainer.validation_interval = cfg.VAL_INTERVAL
+    # validation_steps = num_of_validation_examples // eval_batch_size
+    exp_config.trainer.validation_steps = cfg.VAL_STEPS
+    exp_config.trainer.train_steps = train_steps
+    
+    # Optimizer and LR config
+    exp_config.trainer.optimizer_config.optimizer.type = cfg.OPTIMIZER_TYPE
+    if cfg.LR_DECAY:
+        exp_config.trainer.optimizer_config.learning_rate.type = 'cosine'
+        exp_config.trainer.optimizer_config.learning_rate.cosine.decay_steps = \
+            train_steps
+        exp_config.trainer.optimizer_config.learning_rate.cosine.\
+            initial_learning_rate = cfg.LR_INITIAL
+    else:
+        exp_config.trainer.optimizer_config.learning_rate.type = 'constant'
+        exp_config.trainer.optimizer_config.learning_rate.constant.learning_rate = \
+            cfg.LR_INITIAL
+
+    exp_config.trainer.optimizer_config.warmup.linear.warmup_steps = cfg.LR_WARMUP_STEPS
+    exp_config.trainer.optimizer_config.warmup.linear.warmup_learning_rate = \
+        cfg.LR_WARMUP
+        
+    # Checkpoint strategy
+    exp_config.trainer.best_checkpoint_eval_metric = cfg.BEST_CP_METRIC
+    exp_config.trainer.best_checkpoint_export_subdir = cfg.BEST_CP_DIR
+    exp_config.trainer.best_checkpoint_metric_comp = cfg.BEST_CP_METRIC_COMP
+    
+    return exp_config
+    

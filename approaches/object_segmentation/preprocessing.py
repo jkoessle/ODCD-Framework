@@ -2,9 +2,9 @@ import os
 import numpy as np
 import pandas as pd
 import cnn_image_detection.utils.utilities as cnn_utils
-import utils.utilities as seg_utils
-import utils.config as cfg
-# import object_segmentation.datasets as data
+import object_segmentation.utils.utilities as seg_utils
+import object_segmentation.utils.config as cfg
+
 from pm4py import discover_dfg_typed
 from numpy import linalg as LA
 from scipy import spatial

@@ -30,7 +30,13 @@ BEST_CP_DIR = "approaches\\object_segmentation\\model_logging\\best_cp"
 BEST_CP_METRIC = "AP"
 BEST_CP_METRIC_COMP = "higher"
 
-OPTIMIZER_TYPE = "adamw"
+OPTIMIZER_TYPE = "adam"
+
+# Possible Models:
+# retinanet_resnetfpn_coco, retinanet_spinenet_coco
+MODEL_SELECTION = "retinanet_spinenet_coco"
+
+LR_DECAY = True
 
 ##### OBJECT DETECTION CONFIG #####
 N_SHARDS = 1
@@ -40,4 +46,5 @@ TEST_DATA_DIR = ""
 MODEL_PATH = "approaches\\object_segmentation\\model_logging"
 TFR_RECORDS_DIR = "approaches\\object_segmentation\\tfr_data"
 DEFAULT_OUTPUT_DIR = "approaches\\object_segmentation\\output"
+TRAINED_MODEL_PATH = ""
 

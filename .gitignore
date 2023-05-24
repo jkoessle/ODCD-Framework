@@ -139,6 +139,7 @@ logs/*
 annotations.json
 *.tfrec
 *.tfrecord
+*.xlsx
 
 # misc
 test.py

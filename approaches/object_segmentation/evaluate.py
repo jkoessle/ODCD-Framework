@@ -13,6 +13,6 @@ def evaluate(model):
 
 if __name__ == "__main__":
 
-    model = tf.saved_model.load(cfg.DEFAULT_OUTPUT_DIR)
+    model = tf.saved_model.load(cfg.TRAINED_MODEL_PATH)
     
     evaluate(model)
