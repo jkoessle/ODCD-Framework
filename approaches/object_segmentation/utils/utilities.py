@@ -477,7 +477,7 @@ def get_timestamp():
 
 
 
-def get_model_config():
+def get_model_config(model_dir):
     exp_config = exp_factory.get_exp_config(cfg.MODEL_SELECTION)
     
     # non adjustable for pretrained model
@@ -486,6 +486,7 @@ def get_model_config():
     # Model specific config
     if cfg.MODEL_SELECTION == "retinanet_spinenet_coco":
         exp_config.task.model.backbone.spinenet.model_id = cfg.SPINENET_ID
+        exp_config.task.model.anchor.anchor_size = 4
 
     # Backbone config
     exp_config.task.freeze_backbone = False
@@ -554,7 +555,8 @@ def get_model_config():
         
     # Checkpoint strategy
     exp_config.trainer.best_checkpoint_eval_metric = cfg.BEST_CP_METRIC
-    exp_config.trainer.best_checkpoint_export_subdir = cfg.BEST_CP_DIR
+    exp_config.trainer.best_checkpoint_export_subdir = os.path.join(model_dir, 
+                                                                    "best_cp")
     exp_config.trainer.best_checkpoint_metric_comp = cfg.BEST_CP_METRIC_COMP
     
     return exp_config

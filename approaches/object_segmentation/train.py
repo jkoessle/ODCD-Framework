@@ -17,7 +17,7 @@ def train(train_data_path=cfg.TRAIN_DATA_DIR, validation_data_path=cfg.EVAL_DATA
     model_dir = os.path.join(model_dir, f"{timestamp}_{cfg.OPTIMIZER_TYPE}")
     output_dir = os.path.join(output_dir, f"{timestamp}_{cfg.OPTIMIZER_TYPE}")
 
-    exp_config = utils.get_model_config()
+    exp_config = utils.get_model_config(model_dir)
 
     if exp_config.runtime.mixed_precision_dtype == tf.float16:
         tf.keras.mixed_precision.set_global_policy('mixed_float16')
@@ -59,7 +59,7 @@ def train(train_data_path=cfg.TRAIN_DATA_DIR, validation_data_path=cfg.EVAL_DATA
         params=exp_config,
         checkpoint_path=tf.train.latest_checkpoint(model_dir),
         export_dir=output_dir)
-
+    
     return model, eval_logs
 
 

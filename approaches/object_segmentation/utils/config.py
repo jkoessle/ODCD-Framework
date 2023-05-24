@@ -35,7 +35,6 @@ LR_INITIAL = 0.1
 LR_WARMUP = 0.05
 LR_WARMUP_STEPS = 4 * STEPS_PER_LOOP
 
-BEST_CP_DIR = "approaches\\object_segmentation\\model_logging\\best_cp"
 BEST_CP_METRIC = "AP"
 BEST_CP_METRIC_COMP = "higher"
 
@@ -48,15 +47,14 @@ SGD_CLIPNORM = 10.0
 ADAM_BETA_1 = 0.9
 ADAM_BETA_2 = 0.999
 
-STEPWISE_BOUNDARIES = [(FACTOR-25) * STEPS_PER_LOOP,
-                       (FACTOR-10) * STEPS_PER_LOOP]
+STEPWISE_BOUNDARIES = [(FACTOR*0.95) * STEPS_PER_LOOP,
+                       (FACTOR*0.98) * STEPS_PER_LOOP]
 STEPWISE_VALUES = [0.32, 0.032, 0.0032]
 
 # Possible Models:
 # retinanet_resnetfpn_coco, retinanet_spinenet_coco
 MODEL_SELECTION = "retinanet_spinenet_coco"
 SPINENET_ID = "143"
-
 
 
 ##### OBJECT DETECTION CONFIG #####
