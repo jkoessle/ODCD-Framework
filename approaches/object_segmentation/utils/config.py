@@ -8,6 +8,9 @@ N_WINDOWS = 100
 DEFAULT_DATA_DIR = "data"
 DEFAULT_LOG_DIR = "logs"
 DRIFT_TYPES = ["sudden", "gradual", "incremental", "recurring"]
+DISTANCE_MEASURE = "cos"
+COLOR = "color"
+P_MODE = "train"
 
 
 ##### MODEL CONFIG #####

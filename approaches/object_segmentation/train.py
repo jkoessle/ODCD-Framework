@@ -56,6 +56,7 @@ def train(model_dir=cfg.MODEL_PATH, output_dir=cfg.DEFAULT_OUTPUT_DIR):
         batch_size=1,
         input_image_size=[cfg.HEIGHT, cfg.WIDTH],
         params=exp_config,
+        log_model_flops_and_params=True,
         checkpoint_path=tf.train.latest_checkpoint(model_dir),
         export_dir=output_dir)
     

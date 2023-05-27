@@ -1,13 +1,16 @@
 ##### GENERAL CONFIG #####
 DEBUG = True
-OBJECT_DETECTION = True
+OBJECT_DETECTION = False
 
 
 ##### DATA CONFIG #####
-N_WINDOWS = 100
+N_WINDOWS = 200
 DEFAULT_DATA_DIR = "data"
 DEFAULT_LOG_DIR = "logs"
 DRIFT_TYPES = ["sudden","gradual","incremental","recurring"]
+DISTANCE_MEASURE = "cos"
+COLOR = "color"
+P_MODE = "train"
 
 
 ##### MODEL CONFIG #####

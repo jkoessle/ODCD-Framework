@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
     # create experiment folder structure
-    cfg.DEFAULT_DATA_DIR = cnn_utils.create_multilabel_experiment()
+    cfg.DEFAULT_DATA_DIR = cnn_utils.create_multilabel_experiment(cfg.DEFAULT_DATA_DIR)
 
     # get all paths and file names of event logs
     log_files = cnn_utils.get_event_log_paths(cfg.DEFAULT_LOG_DIR)
@@ -66,7 +66,7 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
         # save matrix as image
         cnn_utils.matrix_to_img(matrix=sim_matrix, number=drift_number,
                                 drift_type=drift_type, exp_path=cfg.DEFAULT_DATA_DIR,
-                                log_name=log_name, mode="color")
+                                log_name=log_name, mode=cfg.COLOR)
 
         # increment log number
         drift_number += 1
@@ -173,7 +173,9 @@ def similarity_calculation(windowed_dfg):
             if (i == j) or (sim_matrix[i, j] != 0):
                 continue
             else:
-                sim_matrix[i, j] = calc_distance_norm(matrix_i, matrix_j)
+                sim_matrix[i, j] = calc_distance_norm(matrix_i, 
+                                                      matrix_j, 
+                                                      cfg.DISTANCE_MEASURE)
                 sim_matrix[j, i] = sim_matrix[i, j]
             # sim_matrix[i, j] = calc_distance_norm(matrix_i, matrix_j)
 
@@ -197,7 +199,7 @@ def similarity_calculation(windowed_dfg):
     return img_matrix
 
 
-def calc_distance_norm(matrix_1, matrix_2, option="fro"):
+def calc_distance_norm(matrix_1, matrix_2, option):
     diff = matrix_1 - matrix_2
     if option == "fro":
         # Frobenius norm
@@ -207,7 +209,7 @@ def calc_distance_norm(matrix_1, matrix_2, option="fro"):
         dist_value = LA.norm(diff, "nuc")
     elif option == "inf":
         # max norm
-        dist_value = LA.norm(diff, "inf")
+        dist_value = LA.norm(diff, np.inf)
     elif option == "l2":
         # L2 norm
         dist_value = LA.norm(diff, 2)
