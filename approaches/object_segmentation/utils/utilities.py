@@ -9,13 +9,13 @@ import numpy as np
 
 from . import config as cfg
 from PIL import Image
-from six import BytesIO
+# from six import BytesIO
 from official.vision.dataloaders.tf_example_decoder import TfExampleDecoder
 from official.vision.utils.object_detection import visualization_utils
 from official.core import exp_factory
 
 from official.vision.ops.preprocess_ops import resize_and_crop_image
-from urllib.request import urlopen
+# from urllib.request import urlopen
 
 def get_event_log_paths():
     list_of_files = {}
@@ -192,9 +192,7 @@ def get_segmentation(bbox):
                     [xmin, ymax]]
     return list([segmentation])
 
-def generate_annotations(drift_info, dir, log_matching):
-
-    log_names = pd.unique(drift_info["log_name"])
+def generate_annotations(drift_info, dir, log_matching, log_names):
 
     categories = [
         {"supercategory": "drift", "id": 1, "name": "sudden"},

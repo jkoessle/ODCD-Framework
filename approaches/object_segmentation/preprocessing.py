@@ -79,12 +79,23 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
     if cfg.DEBUG:
         drift_info.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "drift_info.csv"))
         
+        #TODO use function
+        log_matching_df = pd.DataFrame.from_dict(log_matching, 
+                                                 orient="index", 
+                                                 columns=["image_id"])
+        log_matching_df.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "log_matching.csv"))
+    
+    #TODO use function
     window_info_path = os.path.join(cfg.DEFAULT_DATA_DIR, "window_info.json")
     with open(window_info_path, "w", encoding='utf-8') as file:
         json.dump(window_info, file)
 
-    seg_utils.generate_annotations(drift_info, dir=cfg.DEFAULT_DATA_DIR,
-                                   log_matching=log_matching)
+    seg_utils.generate_annotations(drift_info, 
+                                   dir=cfg.DEFAULT_DATA_DIR,
+                                   log_matching=log_matching,
+                                   log_names=log_files.keys())
+    
+    
     # annotations = seg_utils.read_annotations(dir=cfg.DEFAULT_DATA_DIR)
 
     # data.generate_tfr_data_from_coco_annotations(img_dir=cfg.DEFAULT_DATA_DIR)
