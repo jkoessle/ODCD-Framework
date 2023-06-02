@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 import pandas as pd
 import cnn_image_detection.utils.utilities as cnn_utils
@@ -28,6 +29,7 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
     drift_number = 1
 
     log_matching = {}
+    window_info = {}
 
     # iterate through log files
     for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs",
@@ -40,39 +42,46 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
         filtered_log = cnn_utils.filter_complete_events(event_log)
 
         # TODO outsource to function - save info as csv/dataframe
-        if p_mode == "train":
+        # if p_mode == "train":
 
-            log_info = drift_info.loc[drift_info["log_name"] == name]
+        #     log_info = drift_info.loc[drift_info["log_name"] == name]
 
-            drift_types = pd.unique(log_info["drift_type"])
+        #     drift_types = pd.unique(log_info["drift_type"])
 
-            drift_type = "_".join(drift_types)
+        #     drift_type = "_".join(drift_types)
 
-        elif p_mode == "eval":
-            drift_type = name
+        # elif p_mode == "eval":
+        #     drift_type = name
 
-        windowed_dfg_matrices, borders = log_to_windowed_dfg_count(
+        windowed_dfg_matrices, borders, window_information = log_to_windowed_dfg_count(
             filtered_log, n_windows)
+        
+        window_info[name] = window_information
 
         drift_info = seg_utils.update_trace_indices(drift_info, name, borders)
 
         # get similarity matrix
         sim_matrix = similarity_calculation(windowed_dfg_matrices)
 
-        log_name = name.split(".")[0]
+        # log_name = name.split(".")[0]
 
         log_matching[name] = drift_number
 
         # save matrix as image
-        cnn_utils.matrix_to_img(matrix=sim_matrix, number=drift_number,
-                                drift_type=drift_type, exp_path=cfg.DEFAULT_DATA_DIR,
-                                log_name=log_name, mode=cfg.COLOR)
+        seg_utils.matrix_to_img(matrix=sim_matrix, 
+                                number=drift_number,
+                                exp_path=cfg.DEFAULT_DATA_DIR,
+                                mode=cfg.COLOR)
 
         # increment log number
         drift_number += 1
 
     if cfg.DEBUG:
         drift_info.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "drift_info.csv"))
+        
+    window_info_path = os.path.join(cfg.DEFAULT_DATA_DIR, "window_info.json")
+    with open(window_info_path, "w", encoding='utf-8') as file:
+        json.dump(window_info, file)
 
     seg_utils.generate_annotations(drift_info, dir=cfg.DEFAULT_DATA_DIR,
                                    log_matching=log_matching)
@@ -111,6 +120,8 @@ def log_to_windowed_dfg_count(event_log, n_windows):
     # start_act = []
     # end_act = []
 
+    window_information = {}
+
     # iterate through windows
     for i in range(1, n_windows + 1):
         dfg_matrix_df = pd.DataFrame(0, columns=act_names, index=act_names)
@@ -148,6 +159,14 @@ def log_to_windowed_dfg_count(event_log, n_windows):
         left_boundary = right_boundary
         right_boundary += window_size
 
+        # get id of first trace in window - for evaluation
+        first_trace = w_unique_traces[0]
+        first_timestamp = min(
+            event_log_df.loc[event_log_df["case:concept:name"] == first_trace,
+                             "time:timestamp"])
+        first_timestamp = first_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        window_information[i] = (first_trace, first_timestamp)
+
     # compare dfg frequencies of all windows with dfg frequencies of complete log
     # ensures that there are no missing relations
     total_freq = check_dfg_graph_freq(event_log_df)
@@ -156,9 +175,9 @@ def log_to_windowed_dfg_count(event_log, n_windows):
         f"Number of relations in whole event log: {total_freq}.\n"
         f"Number of relations in all windows: {freq_count}"
     )
-
+    
     # , np.array(start_act), np.array(end_act)
-    return np.array(dfg_graphs), borders
+    return np.array(dfg_graphs), borders, window_information
 
 
 def similarity_calculation(windowed_dfg):

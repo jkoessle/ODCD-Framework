@@ -296,6 +296,8 @@ def extract_drift_information(dir) -> pd.DataFrame:
 
     drift_info["change_trace_index"] = drift_info["change_trace_index"].map(
         special_string_2_list)
+    
+    drift_info["drift_traces_index"] = drift_info["change_trace_index"]
 
     return drift_info
 
@@ -350,7 +352,7 @@ def visualize_batch(path, mode, n_examples=3):
         visualization_utils.visualize_boxes_and_labels_on_image_array(
             image,
             decoded_tensors['groundtruth_boxes'].numpy(),
-            decoded_tensors['groundtruth_classes'].numpy().astype('int'),
+            decoded_tensors['groundtruth_classes'].numpy().astype(int),
             scores,
             category_index=category_index,
             use_normalized_coordinates=use_normalized_coordinates,
@@ -414,7 +416,7 @@ def visualize_predictions(path, mode, model, n_examples=3):
         visualization_utils.visualize_boxes_and_labels_on_image_array(
             image_np,
             decoded_tensors['groundtruth_boxes'].numpy(),
-            decoded_tensors['groundtruth_classes'].numpy().astype('int'),
+            decoded_tensors['groundtruth_classes'].numpy().astype(int),
             scores=None,
             category_index=category_index,
             use_normalized_coordinates=True,
@@ -431,32 +433,32 @@ def visualize_predictions(path, mode, model, n_examples=3):
                 bbox_inches="tight")
 
 
-def load_image_into_numpy_array(path):
-    """Load an image from file into a numpy array.
+# def load_image_into_numpy_array(path):
+#     """Load an image from file into a numpy array.
 
-    Puts image into numpy array to feed into tensorflow graph.
-    Note that by convention we put it into a numpy array with shape
-    (height, width, channels), where channels=3 for RGB.
+#     Puts image into numpy array to feed into tensorflow graph.
+#     Note that by convention we put it into a numpy array with shape
+#     (height, width, channels), where channels=3 for RGB.
 
-    Args:
-        path: the file path to the image
+#     Args:
+#         path: the file path to the image
 
-    Returns:
-        uint8 numpy array with shape (img_height, img_width, 3)
-    """
-    image = None
-    if (path.startswith('http')):
-        response = urlopen(path)
-        image_data = response.read()
-        image_data = BytesIO(image_data)
-        image = Image.open(image_data)
-    else:
-        image_data = tf.io.gfile.GFile(path, 'rb').read()
-        image = Image.open(BytesIO(image_data))
+#     Returns:
+#         uint8 numpy array with shape (img_height, img_width, 3)
+#     """
+#     image = None
+#     if (path.startswith('http')):
+#         response = urlopen(path)
+#         image_data = response.read()
+#         image_data = BytesIO(image_data)
+#         image = Image.open(image_data)
+#     else:
+#         image_data = tf.io.gfile.GFile(path, 'rb').read()
+#         image = Image.open(BytesIO(image_data))
 
-    (im_width, im_height) = image.size
-    return np.array(image.getdata()).reshape(
-        (1, im_height, im_width, 3)).astype(np.uint8)
+#     (im_width, im_height) = image.size
+#     return np.array(image.getdata()).reshape(
+#         (1, im_height, im_width, 3)).astype(np.uint8)
 
 
 def build_inputs_for_object_detection(image, input_image_size):
@@ -465,8 +467,8 @@ def build_inputs_for_object_detection(image, input_image_size):
         image,
         input_image_size,
         padded_size=input_image_size,
-        aug_scale_min=1.0,
-        aug_scale_max=1.0)
+        aug_scale_min=cfg.SCALE_MIN,
+        aug_scale_max=cfg.SCALE_MAX)
     return image
 
 
@@ -564,3 +566,55 @@ def get_model_config(model_dir):
     
     return exp_config
     
+
+#TODO
+def get_drift_moments(log_dir, eval_dir, model, threshold=0.5):
+    
+    data = tf.data.TFRecordDataset(eval_dir)
+    input_image_size = cfg.IMAGE_SIZE
+    model_fn = model.signatures['serving_default']
+    
+    category_index, tf_ex_decoder = get_ex_decoder()
+    
+    for i, tfr_tensor in enumerate(data):
+        decoded_tensor = tf_ex_decoder.decode(tfr_tensor)
+        image = build_inputs_for_object_detection(
+            decoded_tensor['image'], input_image_size)
+        image = tf.expand_dims(image, axis=0)
+        image = tf.cast(image, dtype=tf.uint8)
+        # image_np = image[0].numpy()
+        result = model_fn(image)
+        
+        # result = np.where(result['detection_scores'][0].numpy() > threshold)
+        
+        scores = result['detection_scores'][0].numpy()
+        
+        bbox_true = decoded_tensor['groundtruth_boxes'].numpy() * cfg.N_WINDOWS
+        bbox_pred = result['detection_boxes'][0].numpy() / cfg.TARGETSIZE \
+            * cfg.N_WINDOWS
+        
+        bbox_pred = bbox_pred[scores > threshold]
+        
+        y_true = decoded_tensor['groundtruth_classes'].numpy().astype(int)
+        y_pred = result['detection_classes'][0].numpy().astype(int)
+        
+        y_pred = y_pred[bbox_pred]
+        
+        
+        
+def matrix_to_img(matrix, number, exp_path, mode="color"):
+
+    if mode == "color":
+        # Get the color map by name:
+        cm = plt.get_cmap('viridis')
+        # Apply the colormap like a function to any array:
+        colored_image = cm(matrix)
+
+        im = Image.fromarray((colored_image[:, :, :3] * 255).astype(np.uint8))
+
+    elif mode == "gray":
+        im = Image.fromarray(matrix).convert("RGB")
+    
+    im.save(os.path.join(exp_path, f"{number}.jpg"))
+        
+        

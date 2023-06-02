@@ -4,7 +4,7 @@ OBJECT_DETECTION = False
 
 
 ##### DATA CONFIG #####
-N_WINDOWS = 200
+N_WINDOWS = 100
 DEFAULT_DATA_DIR = "data"
 DEFAULT_LOG_DIR = "logs"
 DRIFT_TYPES = ["sudden","gradual","incremental","recurring"]

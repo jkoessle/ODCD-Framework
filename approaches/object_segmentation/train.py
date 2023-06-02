@@ -50,6 +50,10 @@ def train(model_dir=cfg.MODEL_PATH, output_dir=cfg.DEFAULT_OUTPUT_DIR):
         params=exp_config,
         model_dir=model_dir,
         run_post_eval=True)
+    
+    #TODO
+    save_options = tf.saved_model.SaveOptions()
+    
 
     export_saved_model_lib.export_inference_graph(
         input_type='image_tensor',
@@ -57,6 +61,7 @@ def train(model_dir=cfg.MODEL_PATH, output_dir=cfg.DEFAULT_OUTPUT_DIR):
         input_image_size=[cfg.HEIGHT, cfg.WIDTH],
         params=exp_config,
         log_model_flops_and_params=True,
+        save_options=save_options,
         checkpoint_path=tf.train.latest_checkpoint(model_dir),
         export_dir=output_dir)
     
