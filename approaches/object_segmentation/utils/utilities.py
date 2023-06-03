@@ -9,13 +9,12 @@ import numpy as np
 
 from . import config as cfg
 from PIL import Image
-# from six import BytesIO
 from official.vision.dataloaders.tf_example_decoder import TfExampleDecoder
 from official.vision.utils.object_detection import visualization_utils
 from official.core import exp_factory
 
 from official.vision.ops.preprocess_ops import resize_and_crop_image
-# from urllib.request import urlopen
+
 
 def get_event_log_paths():
     list_of_files = {}
@@ -118,7 +117,7 @@ def bbox_center_to_corner(box):
     return [xmin, ymin, xmax, ymax]
 
 
-def bbox_coco_format(box):
+def bbox_coco_format(box: list) -> list:
     xmin, ymin, xmax, ymax = box[0], box[1], box[2], box[3]
     x = xmin
     y = ymin
@@ -127,45 +126,98 @@ def bbox_coco_format(box):
     return [x, y, width, height]
 
 
-def get_bbox_as_list(df: pd.DataFrame, annotation_type="coco"):
+def get_bbox_as_list_coco(df: pd.DataFrame, drift_type: str) -> list:
 
-    if len(df.index) > 1:
+    if drift_type == "sudden":
+        bbox = df.iloc[0]["change_trace_index"]
+        bbox = get_sudden_bbox_coco(bbox)
+        return bbox_coco_format(bbox)
+    elif drift_type == "gradual":
+        if len(df.index) > 1:
+            first_row = df.iloc[0]["change_trace_index"]
+            last_row = df.iloc[-1]["change_trace_index"]
+        else:
+            bbox = df.iloc[0]["change_trace_index"]
+        bbox = get_gradual_bbox_coco(bbox)
+        return bbox_coco_format(bbox)
+    elif drift_type == "incremental" or drift_type == "recurring":
         first_row = df.iloc[0]["change_trace_index"]
         last_row = df.iloc[-1]["change_trace_index"]
+        return bbox_coco_format(
+            [first_row[0], first_row[1], last_row[2], last_row[3]])
 
-        if annotation_type == "coco":
-            return bbox_coco_format(
-                [first_row[0], first_row[1], last_row[2], last_row[3]])
+
+def get_sudden_bbox_coco(bbox):
+    # artificially enlarge sudden bboxes for detection
+    if cfg.RESIZE_SUDDEN_BBOX and bbox[0] < cfg.RESIZE_VALUE:
+        bbox[0] = 0
+        bbox[1] = 0
+        bbox[2] += cfg.RESIZE_VALUE
+        bbox[3] += cfg.RESIZE_VALUE
+    elif cfg.RESIZE_SUDDEN_BBOX and bbox[0] > cfg.RESIZE_VALUE:
+        if check_window_size(bbox[3] + cfg.RESIZE_VALUE):
+            bbox[0] -= cfg.RESIZE_VALUE
+            bbox[1] -= cfg.RESIZE_VALUE
+            bbox[2] += cfg.RESIZE_VALUE
+            bbox[3] += cfg.RESIZE_VALUE
         else:
-            return [first_row[0], first_row[1], last_row[2], last_row[3]]
+            bbox[0] -= cfg.RESIZE_VALUE
+            bbox[1] -= cfg.RESIZE_VALUE
+            bbox[2] = cfg.N_WINDOWS
+            bbox[3] = cfg.N_WINDOWS
     else:
-        if annotation_type == "coco":
-            bbox = df.iloc[0]["change_trace_index"]
-            # for sudden drifts add 1 for width/height
+        # add at least 1 for width/heigh to detect drifts
+        if check_window_size(bbox[3] + 1):
             bbox[2] += 1
             bbox[3] += 1
-            return bbox_coco_format(bbox)
         else:
-            return df.iloc[0]["change_trace_index"]
-        
+            bbox[0] - 1
+            bbox[1] - 1
+            bbox[2] = cfg.N_WINDOWS
+            bbox[3] = cfg.N_WINDOWS
+    return bbox
 
-def get_bbox_as_list_untyped(df: pd.DataFrame, annotation_type="coco"):
 
-    if len(df.index) > 1:
+def get_gradual_bbox_coco(bbox):
+    # add 1 if gradual drift happens in same window
+    if bbox[0] == bbox[3]:
+        if check_window_size(bbox[3] + 1):
+            bbox[2] += 1
+            bbox[3] += 1
+        else:
+            bbox[0] - 1
+            bbox[1] - 1
+            bbox[2] = cfg.N_WINDOWS
+            bbox[3] = cfg.N_WINDOWS
+    return bbox
+
+
+def check_window_size(value, n_windows=cfg.N_WINDOWS):
+    # check if window value would lie outside of image
+    if value > n_windows:
+        return False
+    else:
+        return True
+
+
+def get_bbox_as_list_coco_untyped(df: pd.DataFrame, drift_type):
+    if drift_type == "sudden":
+        bbox = special_string_2_list(df.iloc[0]["change_trace_index"])
+        bbox = get_sudden_bbox_coco(bbox)
+        return bbox_coco_format(bbox)
+    elif drift_type == "gradual":
+        if len(df.index) > 1:
+            first_row = special_string_2_list(df.iloc[0]["change_trace_index"])
+            last_row = special_string_2_list(df.iloc[-1]["change_trace_index"])
+        else:
+            bbox = special_string_2_list(df.iloc[0]["change_trace_index"])
+        bbox = get_gradual_bbox_coco(bbox)
+        return bbox_coco_format(bbox)
+    elif drift_type == "incremental" or drift_type == "recurring":
         first_row = special_string_2_list(df.iloc[0]["change_trace_index"])
         last_row = special_string_2_list(df.iloc[-1]["change_trace_index"])
-
-        if annotation_type == "coco":
-            return bbox_corner_to_center(
-                [first_row[0], first_row[1], last_row[2], last_row[3]])
-        else:
-            return [first_row[0], first_row[1], last_row[2], last_row[3]]
-    else:
-        if annotation_type == "coco":
-            return bbox_corner_to_center(special_string_2_list(
-                df.iloc[0]["change_trace_index"]))
-        else:
-            return special_string_2_list(df.iloc[0]["change_trace_index"])
+        return bbox_coco_format(
+            [first_row[0], first_row[1], last_row[2], last_row[3]])
 
 
 def get_area(width, height):
@@ -181,16 +233,16 @@ def get_drift_id(drift_type):
 
 
 def get_segmentation(bbox):
-    bbox = bbox_center_to_corner(bbox)
     xmin = bbox[0]
     ymin = bbox[1]
-    xmax = bbox[2]
-    ymax = bbox[3]
+    xmax = bbox[0] + bbox[2]
+    ymax = bbox[1] + bbox[3]
     segmentation = [[xmin, ymin],
                     [xmax, ymin],
                     [xmax, ymax],
                     [xmin, ymax]]
     return list([segmentation])
+
 
 def generate_annotations(drift_info, dir, log_matching, log_names):
 
@@ -200,7 +252,7 @@ def generate_annotations(drift_info, dir, log_matching, log_names):
         {"supercategory": "drift", "id": 3, "name": "incremental"},
         {"supercategory": "drift", "id": 4, "name": "recurring"}
     ]
-    
+
     anno_file = {
         "categories": categories,
         "images": [],
@@ -214,7 +266,7 @@ def generate_annotations(drift_info, dir, log_matching, log_names):
         log_annotation = {}
         log_info = drift_info.loc[drift_info["log_name"] == log_name]
         drift_ids = pd.unique(log_info["drift_or_noise_id"])
-        
+
         img_id = log_matching[log_name]
         img_name = str(img_id) + ".jpg"
         img_path = os.path.join(dir, img_name)
@@ -233,9 +285,12 @@ def generate_annotations(drift_info, dir, log_matching, log_names):
         for drift_id in drift_ids:
             drift = log_info.loc[log_info["drift_or_noise_id"] == drift_id]
             drift_type = pd.unique(drift["drift_type"])[0]
-            
+
             category_id = get_drift_id(drift_type)
-            bbox = get_bbox_as_list(drift)
+            if cfg.ANNOTATIONS_ONLY:
+                bbox = get_bbox_as_list_coco_untyped(drift, drift_type)
+            else:
+                bbox = get_bbox_as_list_coco(drift, drift_type)
             area = get_area(width=bbox[2], height=bbox[3])
             segmentation = get_segmentation(bbox)
             log_annotation = {
@@ -250,14 +305,14 @@ def generate_annotations(drift_info, dir, log_matching, log_names):
                 "segmentation": segmentation}
             anno_file["annotations"].append(log_annotation)
             annotation_id += 1
-            
+
         img_id += 1
 
     annotations_path = os.path.join(dir, "annotations.json")
     with open(annotations_path, "w", encoding='utf-8') as file:
         json.dump(anno_file, file)
 
-        
+
 def read_annotations(dir):
     path = os.path.join(dir, "annotations.json")
     with open(path) as file:
@@ -294,7 +349,7 @@ def extract_drift_information(dir) -> pd.DataFrame:
 
     drift_info["change_trace_index"] = drift_info["change_trace_index"].map(
         special_string_2_list)
-    
+
     drift_info["drift_traces_index"] = drift_info["change_trace_index"]
 
     return drift_info
@@ -362,7 +417,7 @@ def visualize_batch(path, mode, n_examples=3):
         plt.imshow(image)
         plt.axis('off')
         plt.title(f'Image-{i+1}')
-        
+
     plt.savefig(os.path.join(cfg.DEFAULT_OUTPUT_DIR, f"{mode}_batch.png"),
                 bbox_inches="tight")
 
@@ -423,40 +478,12 @@ def visualize_predictions(path, mode, model, n_examples=3):
             agnostic_mode=False,
             instance_masks=None,
             line_thickness=2)
-        
+
         plt.imshow(image_np)
         plt.axis('off')
 
     plt.savefig(os.path.join(cfg.DEFAULT_OUTPUT_DIR, f"{mode}_predictions.png"),
                 bbox_inches="tight")
-
-
-# def load_image_into_numpy_array(path):
-#     """Load an image from file into a numpy array.
-
-#     Puts image into numpy array to feed into tensorflow graph.
-#     Note that by convention we put it into a numpy array with shape
-#     (height, width, channels), where channels=3 for RGB.
-
-#     Args:
-#         path: the file path to the image
-
-#     Returns:
-#         uint8 numpy array with shape (img_height, img_width, 3)
-#     """
-#     image = None
-#     if (path.startswith('http')):
-#         response = urlopen(path)
-#         image_data = response.read()
-#         image_data = BytesIO(image_data)
-#         image = Image.open(image_data)
-#     else:
-#         image_data = tf.io.gfile.GFile(path, 'rb').read()
-#         image = Image.open(BytesIO(image_data))
-
-#     (im_width, im_height) = image.size
-#     return np.array(image.getdata()).reshape(
-#         (1, im_height, im_width, 3)).astype(np.uint8)
 
 
 def build_inputs_for_object_detection(image, input_image_size):
@@ -476,13 +503,12 @@ def get_timestamp():
     return timestamp
 
 
-
 def get_model_config(model_dir):
     exp_config = exp_factory.get_exp_config(cfg.MODEL_SELECTION)
-    
+
     # non adjustable for pretrained model
     IMG_SIZE = [cfg.HEIGHT, cfg.WIDTH, 3]
-    
+
     # Model specific config
     if cfg.MODEL_SELECTION == "retinanet_spinenet_coco":
         exp_config.task.model.backbone.spinenet.model_id = cfg.SPINENET_ID
@@ -525,7 +551,7 @@ def get_model_config(model_dir):
     # validation_steps = num_of_validation_examples // eval_batch_size
     exp_config.trainer.validation_steps = cfg.VAL_STEPS
     exp_config.trainer.train_steps = train_steps
-    
+
     # Optimizer and LR config
     exp_config.trainer.optimizer_config.optimizer.type = cfg.OPTIMIZER_TYPE
     if cfg.OPTIMIZER_TYPE == "sgd":
@@ -534,14 +560,14 @@ def get_model_config(model_dir):
     elif cfg.OPTIMIZER_TYPE == "adam":
         exp_config.trainer.optimizer_config.optimizer.adam.beta_1 = cfg.ADAM_BETA_1
         exp_config.trainer.optimizer_config.optimizer.adam.beta_2 = cfg.ADAM_BETA_2
-    
+
     if cfg.LR_DECAY:
         exp_config.trainer.optimizer_config.learning_rate.type = cfg.LR_TYPE
         if cfg.LR_TYPE == "cosine":
             exp_config.trainer.optimizer_config.learning_rate.cosine.decay_steps = \
                 train_steps
             exp_config.trainer.optimizer_config.learning_rate.cosine.\
-            initial_learning_rate = cfg.LR_INITIAL
+                initial_learning_rate = cfg.LR_INITIAL
         elif cfg.LR_TYPE == "stepwise":
             exp_config.trainer.optimizer_config.learning_rate.stepwise.boundaries = \
                 cfg.STEPWISE_BOUNDARIES
@@ -555,25 +581,25 @@ def get_model_config(model_dir):
     exp_config.trainer.optimizer_config.warmup.linear.warmup_steps = cfg.LR_WARMUP_STEPS
     exp_config.trainer.optimizer_config.warmup.linear.warmup_learning_rate = \
         cfg.LR_WARMUP
-        
+
     # Checkpoint strategy
     exp_config.trainer.best_checkpoint_eval_metric = cfg.BEST_CP_METRIC
-    exp_config.trainer.best_checkpoint_export_subdir = os.path.join(model_dir, 
+    exp_config.trainer.best_checkpoint_export_subdir = os.path.join(model_dir,
                                                                     "best_cp")
     exp_config.trainer.best_checkpoint_metric_comp = cfg.BEST_CP_METRIC_COMP
-    
-    return exp_config
-    
 
-#TODO
+    return exp_config
+
+
+# TODO
 def get_drift_moments(log_dir, eval_dir, model, threshold=0.5):
-    
+
     data = tf.data.TFRecordDataset(eval_dir)
     input_image_size = cfg.IMAGE_SIZE
     model_fn = model.signatures['serving_default']
-    
+
     category_index, tf_ex_decoder = get_ex_decoder()
-    
+
     for i, tfr_tensor in enumerate(data):
         decoded_tensor = tf_ex_decoder.decode(tfr_tensor)
         image = build_inputs_for_object_detection(
@@ -582,24 +608,23 @@ def get_drift_moments(log_dir, eval_dir, model, threshold=0.5):
         image = tf.cast(image, dtype=tf.uint8)
         # image_np = image[0].numpy()
         result = model_fn(image)
-        
+
         # result = np.where(result['detection_scores'][0].numpy() > threshold)
-        
+
         scores = result['detection_scores'][0].numpy()
-        
+
         bbox_true = decoded_tensor['groundtruth_boxes'].numpy() * cfg.N_WINDOWS
         bbox_pred = result['detection_boxes'][0].numpy() / cfg.TARGETSIZE \
             * cfg.N_WINDOWS
-        
+
         bbox_pred = bbox_pred[scores > threshold]
-        
+
         y_true = decoded_tensor['groundtruth_classes'].numpy().astype(int)
         y_pred = result['detection_classes'][0].numpy().astype(int)
-        
+
         y_pred = y_pred[bbox_pred]
-        
-        
-        
+
+
 def matrix_to_img(matrix, number, exp_path, mode="color"):
 
     if mode == "color":
@@ -612,7 +637,5 @@ def matrix_to_img(matrix, number, exp_path, mode="color"):
 
     elif mode == "gray":
         im = Image.fromarray(matrix).convert("RGB")
-    
+
     im.save(os.path.join(exp_path, f"{number}.jpg"))
-        
-        

@@ -1,6 +1,7 @@
 ##### GENERAL CONFIG #####
 DEBUG = True
 OBJECT_DETECTION = True
+ANNOTATIONS_ONLY = False
 
 
 ##### DATA CONFIG #####
@@ -11,6 +12,8 @@ DRIFT_TYPES = ["sudden", "gradual", "incremental", "recurring"]
 DISTANCE_MEASURE = "cos"
 COLOR = "color"
 P_MODE = "train"
+RESIZE_SUDDEN_BBOX = True
+RESIZE_VALUE = 5
 
 
 ##### MODEL CONFIG #####
