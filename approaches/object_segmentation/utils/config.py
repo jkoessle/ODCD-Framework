@@ -2,12 +2,15 @@
 DEBUG = True
 OBJECT_DETECTION = True
 ANNOTATIONS_ONLY = False
+AUTOMATE_TFR_SCRIPT = True
 
 
 ##### DATA CONFIG #####
 N_WINDOWS = 200
-DEFAULT_DATA_DIR = "data"
-DEFAULT_LOG_DIR = "logs"
+DEFAULT_DATA_DIR = ""
+DEFAULT_LOG_DIR = ""
+TENSORFLOW_MODELS_DIR = ""
+OUTPUT_PREFIX = ""
 DRIFT_TYPES = ["sudden", "gradual", "incremental", "recurring"]
 DISTANCE_MEASURE = "cos"
 COLOR = "color"
@@ -32,20 +35,20 @@ VAL_INTERVAL = STEPS_PER_LOOP
 IMAGE_SIZE = (256, 256)
 TARGETSIZE = 256
 N_CLASSES = len(DRIFT_TYPES)
-SCALE_MAX = 1.0
-SCALE_MIN = 1.0
+SCALE_MAX = 0.2
+SCALE_MIN = 0.1
 
 HEIGHT, WIDTH = 256, 256
 LR_DECAY = True
-LR_INITIAL = 0.1
-LR_WARMUP = 0.05
-LR_WARMUP_STEPS = 4 * STEPS_PER_LOOP
+LR_INITIAL = 1e-3
+LR_WARMUP = 2.5e-4
+LR_WARMUP_STEPS = 0.1 * TRAIN_STEPS
 
 BEST_CP_METRIC = "AP"
 BEST_CP_METRIC_COMP = "higher"
 
-OPTIMIZER_TYPE = "sgd"
-LR_TYPE = "stepwise"
+OPTIMIZER_TYPE = "adam"
+LR_TYPE = "cosine"
 
 SGD_MOMENTUM = 0.9
 SGD_CLIPNORM = 10.0
@@ -63,15 +66,14 @@ STEPWISE_VALUES = [0.32 * TRAIN_BATCH_SIZE / 256.0,
 # Possible Models:
 # retinanet_resnetfpn_coco, retinanet_spinenet_coco
 MODEL_SELECTION = "retinanet_spinenet_coco"
-SPINENET_ID = "190"
+SPINENET_ID = "143"
 
 
 ##### OBJECT DETECTION CONFIG #####
-N_SHARDS = 1
 TRAIN_DATA_DIR = ""
 EVAL_DATA_DIR = ""
 TEST_DATA_DIR = ""
-MODEL_PATH = "approaches\\object_segmentation\\model_logging"
-TFR_RECORDS_DIR = "approaches\\object_segmentation\\tfr_data"
-DEFAULT_OUTPUT_DIR = "approaches\\object_segmentation\\output"
+MODEL_PATH = ""
+TFR_RECORDS_DIR = ""
+DEFAULT_OUTPUT_DIR = ""
 TRAINED_MODEL_PATH = ""

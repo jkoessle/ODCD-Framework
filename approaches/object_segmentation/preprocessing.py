@@ -79,13 +79,11 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
     if cfg.DEBUG:
         drift_info.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "drift_info.csv"))
         
-        #TODO use function
         log_matching_df = pd.DataFrame.from_dict(log_matching, 
                                                  orient="index", 
                                                  columns=["image_id"])
         log_matching_df.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "log_matching.csv"))
     
-    #TODO use function
     window_info_path = os.path.join(cfg.DEFAULT_DATA_DIR, "window_info.json")
     with open(window_info_path, "w", encoding='utf-8') as file:
         json.dump(window_info, file)
@@ -94,11 +92,12 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
                                    dir=cfg.DEFAULT_DATA_DIR,
                                    log_matching=log_matching,
                                    log_names=log_files.keys())
-    
-    
-    # annotations = seg_utils.read_annotations(dir=cfg.DEFAULT_DATA_DIR)
 
-    # data.generate_tfr_data_from_coco_annotations(img_dir=cfg.DEFAULT_DATA_DIR)
+    if cfg.AUTOMATE_TFR_SCRIPT:
+        seg_utils.start_tfr_script(repo_dir=cfg.TENSORFLOW_MODELS_DIR,
+                                data_dir=cfg.DEFAULT_DATA_DIR,
+                                tfr_dir=cfg.TFR_RECORDS_DIR,
+                                prefix=cfg.OUTPUT_PREFIX)
 
 
 def log_to_windowed_dfg_count(event_log, n_windows):

@@ -2,6 +2,7 @@ import os
 import json
 import datetime
 import pytz
+import subprocess
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -639,3 +640,32 @@ def matrix_to_img(matrix, number, exp_path, mode="color"):
         im = Image.fromarray(matrix).convert("RGB")
 
     im.save(os.path.join(exp_path, f"{number}.jpg"))
+    
+    
+def start_tfr_script(repo_dir:str, data_dir:str, tfr_dir:str, prefix:str):
+    """!! BE CAREFUL, THIS PART IS HARDCODED !!
+    To use this function, you must clone the Tensorflow model garden clone repository, 
+    which can be found here: https://github.com/tensorflow/models/tree/master
+    
+    Args:
+        repo_dir (str): Path of the Tensorflow model garden repository
+        data_dir (str): Path of image directory
+        tfr_dir (str): Path of tfr directory
+        prefix (str): Prefix for naming tfr file
+    """
+
+    annotations_path = os.path.join(data_dir, "annotations.json")
+    output_path = os.path.join(tfr_dir, prefix)
+
+    cmd = f"python -m official.vision.data.create_coco_tf_record --logtostderr \
+            --image_dir={data_dir} \
+            --object_annotations_file={annotations_path} \
+            --output_file_prefix={output_path} \
+            --num_shards=1"
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, cwd=repo_dir)
+    
+    try:
+        outs, errs = p.communicate(timeout=15)
+    except subprocess.TimeoutExpired:
+        p.kill()
+        outs, errs = p.communicate()
