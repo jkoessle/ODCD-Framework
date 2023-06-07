@@ -7,13 +7,12 @@ import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
+import object_segmentation.utils.config as cfg
 
-from . import config as cfg
 from PIL import Image
 from official.vision.dataloaders.tf_example_decoder import TfExampleDecoder
 from official.vision.utils.object_detection import visualization_utils
 from official.core import exp_factory
-
 from official.vision.ops.preprocess_ops import resize_and_crop_image
 
 
@@ -393,7 +392,7 @@ def visualize_batch(path, mode, n_examples=3):
 
     data = tf.data.TFRecordDataset(
         path).shuffle(
-        buffer_size=20).take(n_examples)
+        buffer_size=cfg.EVAL_EXAMPLES).take(n_examples)
 
     plt.figure(figsize=(20, 20))
     use_normalized_coordinates = True
@@ -423,7 +422,7 @@ def visualize_batch(path, mode, n_examples=3):
                 bbox_inches="tight")
 
 
-def visualize_predictions(path, mode, model, n_examples=3):
+def visualize_predictions(path, mode, model, n_examples=3, threshold=0.30):
 
     # dynamically create subplots based on n_examples
     columns = 3
@@ -439,12 +438,9 @@ def visualize_predictions(path, mode, model, n_examples=3):
 
     data = tf.data.TFRecordDataset(
         path).shuffle(
-        buffer_size=20).take(n_examples)
+        buffer_size=cfg.EVAL_EXAMPLES).take(n_examples)
 
     plt.figure(figsize=(20, 20))
-
-    # Change minimum score for threshold to see all bounding boxes confidences.
-    min_score_thresh = 0.30
 
     for i, serialized_example in enumerate(data):
         plt.subplot(rows, columns, pos[i])
@@ -463,7 +459,7 @@ def visualize_predictions(path, mode, model, n_examples=3):
             category_index=category_index,
             use_normalized_coordinates=False,
             max_boxes_to_draw=200,
-            min_score_thresh=min_score_thresh,
+            min_score_thresh=threshold,
             agnostic_mode=False,
             instance_masks=None,
             line_thickness=2)
@@ -475,7 +471,7 @@ def visualize_predictions(path, mode, model, n_examples=3):
             category_index=category_index,
             use_normalized_coordinates=True,
             max_boxes_to_draw=200,
-            min_score_thresh=min_score_thresh,
+            min_score_thresh=threshold,
             agnostic_mode=False,
             instance_masks=None,
             line_thickness=2)
@@ -493,8 +489,9 @@ def build_inputs_for_object_detection(image, input_image_size):
         image,
         input_image_size,
         padded_size=input_image_size,
-        aug_scale_min=cfg.SCALE_MIN,
-        aug_scale_max=cfg.SCALE_MAX)
+        # dont scale images for visualization
+        aug_scale_min=1.0,
+        aug_scale_max=1.0)
     return image
 
 
@@ -640,9 +637,9 @@ def matrix_to_img(matrix, number, exp_path, mode="color"):
         im = Image.fromarray(matrix).convert("RGB")
 
     im.save(os.path.join(exp_path, f"{number}.jpg"))
-    
-    
-def start_tfr_script(repo_dir:str, data_dir:str, tfr_dir:str, prefix:str):
+
+
+def start_tfr_script(repo_dir: str, data_dir: str, tfr_dir: str, prefix: str):
     """!! BE CAREFUL, THIS PART IS HARDCODED !!
     To use this function, you must clone the Tensorflow model garden clone repository, 
     which can be found here: https://github.com/tensorflow/models/tree/master
@@ -663,7 +660,7 @@ def start_tfr_script(repo_dir:str, data_dir:str, tfr_dir:str, prefix:str):
             --output_file_prefix={output_path} \
             --num_shards=1"
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, cwd=repo_dir)
-    
+
     try:
         outs, errs = p.communicate(timeout=15)
     except subprocess.TimeoutExpired:

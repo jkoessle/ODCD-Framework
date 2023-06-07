@@ -5,6 +5,8 @@ import pandas as pd
 import cnn_image_detection.utils.utilities as cnn_utils
 import object_segmentation.utils.utilities as seg_utils
 import object_segmentation.utils.config as cfg
+import object_segmentation.utils.vdd_helper as vdd_helper
+import object_segmentation.utils.vdd_data_analysis as vdd
 
 from pm4py import discover_dfg_typed
 from numpy import linalg as LA
@@ -98,6 +100,65 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
                                 data_dir=cfg.DEFAULT_DATA_DIR,
                                 tfr_dir=cfg.TFR_RECORDS_DIR,
                                 prefix=cfg.OUTPUT_PREFIX)
+        
+#TODO Add annotations
+def vdd_pipeline():
+    # create experiment folder structure
+    cfg.DEFAULT_DATA_DIR = cnn_utils.create_multilabel_experiment(cfg.DEFAULT_DATA_DIR)
+
+    # get all paths and file names of event logs
+    log_files = cnn_utils.get_event_log_paths(cfg.DEFAULT_LOG_DIR)
+
+    drift_info = seg_utils.extract_drift_information(cfg.DEFAULT_LOG_DIR)
+
+    # incrementally store number of log based on drift type - for file naming purposes
+    drift_number = 1
+
+    log_matching = {}
+
+    # iterate through log files
+    for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs",
+                           unit="Event Log"):
+        
+        log_path = os.path.join(path, name)
+        
+        # load event log
+        event_log = cnn_utils.import_event_log(path=path, name=name)
+
+        # if the log contains incomplete traces, the log is filtered
+        filtered_log = cnn_utils.filter_complete_events(event_log)
+
+        minerful_csv_path = vdd_helper.vdd_mine_minerful_for_declare_constraints(
+            name,
+            log_path,
+            cfg.DEFAULT_DATA_DIR
+            )
+
+        ts_ticks = vdd_helper.vdd_save_separately_timestamp_for_each_constraint_window(
+                filtered_log)
+
+        constraints = vdd_helper.vdd_import_minerful_constraints_timeseries_data(
+            minerful_csv_path)
+
+        constraints, \
+            cluster_bounds, \
+            horisontal_separation_bounds_by_cluster, \
+            clusters_with_declare_names, \
+            clusters_dict, \
+            cluster_order = \
+            vdd.do_cluster_changePoint(constraints, cp_all=cfg.CP_ALL)
+        
+        vdd_helper.vdd_draw_drift_map_with_clusters(
+            data=constraints,
+            number=drift_number,
+            exp_path=cfg.DEFAULT_DATA_DIR,
+            y_lines=cluster_bounds
+            )
+            
+        log_matching[name] = drift_number
+        
+        # increment log number
+        drift_number += 1
 
 
 def log_to_windowed_dfg_count(event_log, n_windows):
