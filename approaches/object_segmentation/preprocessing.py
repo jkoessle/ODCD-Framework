@@ -109,7 +109,7 @@ def vdd_pipeline():
     # get all paths and file names of event logs
     log_files = cnn_utils.get_event_log_paths(cfg.DEFAULT_LOG_DIR)
 
-    drift_info = seg_utils.extract_drift_information(cfg.DEFAULT_LOG_DIR)
+    drift_info = vdd_helper.extract_vdd_drift_information(cfg.DEFAULT_LOG_DIR)
 
     # incrementally store number of log based on drift type - for file naming purposes
     drift_number = 1
@@ -127,6 +127,9 @@ def vdd_pipeline():
 
         # if the log contains incomplete traces, the log is filtered
         filtered_log = cnn_utils.filter_complete_events(event_log)
+        
+        timestamps = vdd_helper.get_drift_moments_timestamps(log_name=name, 
+                                                             drift_info=drift_info)
 
         minerful_csv_path = vdd_helper.vdd_mine_minerful_for_declare_constraints(
             name,
@@ -136,6 +139,9 @@ def vdd_pipeline():
 
         ts_ticks = vdd_helper.vdd_save_separately_timestamp_for_each_constraint_window(
                 filtered_log)
+        
+        # for debugging:
+        # minerful_csv_path = ""
 
         constraints = vdd_helper.vdd_import_minerful_constraints_timeseries_data(
             minerful_csv_path)
@@ -148,12 +154,12 @@ def vdd_pipeline():
             cluster_order = \
             vdd.do_cluster_changePoint(constraints, cp_all=cfg.CP_ALL)
         
-        vdd_helper.vdd_draw_drift_map_with_clusters(
+        bboxes = vdd_helper.vdd_draw_drift_map_with_clusters(
             data=constraints,
             number=drift_number,
             exp_path=cfg.DEFAULT_DATA_DIR,
-            y_lines=cluster_bounds
-            )
+            ts_ticks=ts_ticks,
+            timestamps=timestamps)
             
         log_matching[name] = drift_number
         
