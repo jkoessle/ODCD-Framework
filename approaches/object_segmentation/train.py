@@ -13,8 +13,10 @@ def train(model_dir=cfg.MODEL_PATH, output_dir=cfg.DEFAULT_OUTPUT_DIR):
 
     timestamp = utils.get_timestamp()
 
-    model_dir = os.path.join(model_dir, f"{timestamp}_{cfg.OPTIMIZER_TYPE}")
-    output_dir = os.path.join(output_dir, f"{timestamp}_{cfg.OPTIMIZER_TYPE}")
+    model_dir = os.path.join(model_dir,
+                             f"{timestamp}_{cfg.ENCODING_TYPE}_{cfg.OPTIMIZER_TYPE}")
+    output_dir = os.path.join(output_dir,
+                              f"{timestamp}_{cfg.ENCODING_TYPE}_{cfg.OPTIMIZER_TYPE}")
 
     exp_config = utils.get_model_config(model_dir)
 
@@ -50,10 +52,9 @@ def train(model_dir=cfg.MODEL_PATH, output_dir=cfg.DEFAULT_OUTPUT_DIR):
         params=exp_config,
         model_dir=model_dir,
         run_post_eval=True)
-    
-    #TODO
+
+    # TODO
     save_options = tf.saved_model.SaveOptions()
-    
 
     export_saved_model_lib.export_inference_graph(
         input_type='image_tensor',
@@ -64,7 +65,7 @@ def train(model_dir=cfg.MODEL_PATH, output_dir=cfg.DEFAULT_OUTPUT_DIR):
         save_options=save_options,
         checkpoint_path=tf.train.latest_checkpoint(model_dir),
         export_dir=output_dir)
-    
+
     return model, eval_logs
 
 
@@ -81,5 +82,5 @@ if __name__ == "__main__":
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_devices
 
-    #TODO handle model and eval_logs
+    # TODO handle model and eval_logs
     model, eval_logs = train()
