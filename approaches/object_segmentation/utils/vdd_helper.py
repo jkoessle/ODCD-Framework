@@ -100,8 +100,7 @@ def vdd_mine_minerful_for_declare_constraints(log_name: str, path, exp_path):
     subprocess.call(['java', '-version'])
 
     # changed saving and data structure strategy
-    cwd = os.path.join(os.getcwd(), "approaches",
-                       "vdd", "src", "minerful_scripts")
+    cwd = cfg.MINERFUL_SCRIPTS_DIR
 
     naming = log_name.split(".")[0]
 
@@ -115,38 +114,64 @@ def vdd_mine_minerful_for_declare_constraints(log_name: str, path, exp_path):
     window_size = str(cfg.SUB_L)
     sliding_window_size = str(cfg.SLI_BY)
 
-    subprocess.call(['java',
-                     "-Xmx16G",
-                     "--add-modules",
-                     "java.xml.bind",
-                     '-cp',
-                     'MINERful.jar',
-                     'minerful.MinerFulMinerSlider',
-                     "-iLF",
-                     file_input,
-                     "-iLStartAt",
-                     # 0 here is at which timestamp we start,
-                     # we always start from the first
-                     "0",
-                     "-iLSubLen",
-                     window_size,
-                     "-sliBy",
-                     sliding_window_size,
-                     '-para',
-                     '4',
-                     '-s',
-                     '0.000000001',
-                     '-c',
-                     '0.0',
-                     '-i',
-                     '0.0',
-                     '-prune',
-                     # this is the pruning or not pruning options of constraints
-                     'none',
-                     '-sliOut',
-                     file_output],
-                    env=env,
-                    cwd=cwd)
+    if cfg.WINDOWS_SYSTEM:
+        subprocess.call(['java',
+                        "-Xmx16G",
+                        '-cp',
+                        '.\lib\*;MINERful.jar',
+                        'minerful.MinerFulMinerSlider',
+                        "-iLF",
+                        file_input,
+                        "-iLStartAt",
+                        # 0 here is at which timestamp we start,
+                        # we always start from the first
+                        "0",
+                        "-iLSubLen",
+                        window_size,
+                        "-sliBy",
+                        sliding_window_size,
+                        '-para',
+                        '4',
+                        '-s',
+                        '0.000000001',
+                        '-c',
+                        '0.0',
+                        '-i',
+                        '0.0',
+                        '-prune',
+                        # this is the pruning or not pruning options of constraints
+                        'none',
+                        '-sliOut',
+                        file_output],
+                        env=env,
+                        cwd=cwd)
+    else:
+        subprocess.call(['./run-MINERfulSlider.sh',
+                        "-iLF",
+                        file_input,
+                        "-iLStartAt",
+                        # 0 here is at which timestamp we start,
+                        # we always start from the first
+                        "0",
+                        "-iLSubLen",
+                        window_size,
+                        "-sliBy",
+                        sliding_window_size,
+                        '-para',
+                        '4',
+                        '-s',
+                        '0.000000001',
+                        '-c',
+                        '0.0',
+                        '-i',
+                        '0.0',
+                        '-prune',
+                        # this is the pruning or not pruning options of constraints
+                        'none',
+                        '-sliOut',
+                        file_output],
+                        env=env,
+                        cwd=cwd)
     return file_output
 
 
