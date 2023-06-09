@@ -1,11 +1,11 @@
 import os
 import csv
 import copy
-import math
+import json
+import pytz
 import subprocess
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import matplotlib.dates as mdates
 import object_segmentation.utils.config as cfg
 import object_segmentation.utils.utilities as utils
@@ -13,6 +13,7 @@ import object_segmentation.utils.utilities as utils
 from pathlib import Path
 from matplotlib import pyplot as plt
 from datetime import datetime
+from PIL import Image
 
 
 def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
@@ -46,8 +47,12 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
     ax.imshow(y_data, cmap=cmap, interpolation='nearest',
               extent=[min_date, max_date, y_data.shape[0], 0], aspect='auto')
 
-    width, height = plt.gcf().get_size_inches()
-    size = (width, height)
+    plt.savefig(os.path.join(exp_path, f"{number}.jpg"),
+                bbox_inches='tight',
+                pad_inches=0
+                )
+
+    im = Image.open(os.path.join(exp_path, f"{number}.jpg"))
 
     bboxes = {}
 
@@ -67,7 +72,7 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                                                start,
                                                min_date,
                                                max_date,
-                                               size)
+                                               im.size)
         else:
             # commented out lines are for debugging
             # line_s = ax.axvline(start, color='red', alpha=1.0, linewidth=1)
@@ -78,11 +83,7 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                                                end,
                                                min_date,
                                                max_date,
-                                               size)
-    plt.savefig(os.path.join(exp_path, f"{number}.jpg"),
-                bbox_inches='tight',
-                pad_inches=0
-                )
+                                               im.size)
 
     return bboxes
 
@@ -329,7 +330,7 @@ def get_drift_moments_timestamps(log_name: str, drift_info: pd.DataFrame) -> dic
 
 def get_bbox_coordinates(start: datetime, end: datetime,
                          min: datetime, max: datetime,
-                         size: tuple) -> list:
+                         size: tuple) -> str:
     relative_start = (mdates.date2num(start) - mdates.date2num(min)) / \
         (mdates.date2num(max) - mdates.date2num(min))
     relative_end = (mdates.date2num(end) - mdates.date2num(min)) / \
@@ -342,9 +343,161 @@ def get_bbox_coordinates(start: datetime, end: datetime,
     # ymin = 0, ymax = 1
     # format [xmin, ymin, xmax, ymax]
     bbox = [start, 0, end, height]
+
+    # string for saving in df
+    return str(bbox)
+
+
+def update_bboxes_for_vdd(df: pd.DataFrame, bboxes: dict,
+                          log_name: str) -> pd.DataFrame:
+
+    df_bbox = pd.DataFrame(bboxes.items(),
+                           columns=["drift_or_noise_id", "vdd_bbox"])
+
+    df_bbox.insert(loc=0, column="log_name", value=log_name)
+
+    if len(df.index) == 0:
+        df = df_bbox
+    else:
+        df = pd.concat([df, df_bbox])
+    return df
+
+
+def merge_bboxes_with_drift_info(bboxes_df: pd.DataFrame,
+                                 drift_info: pd.DataFrame) -> pd.DataFrame:
+    drift_info = pd.merge(drift_info, bboxes_df, on=["log_name", "drift_or_noise_id"])
+    return drift_info
+
+
+def get_timestamp():
+    europe = pytz.timezone("Europe/Berlin")
+    timestamp = datetime.now(europe).strftime("%Y%m%d-%H%M%S")
+    return timestamp
+
+
+def create_experiment(dir):
+
+    timestamp = get_timestamp()
+
+    exp_path = os.path.join(dir, f"vdd_experiment_{timestamp}")
+    os.makedirs(exp_path)
+
+    print(f"Experiment created at {exp_path}")
+    return exp_path
+
+
+def generate_vdd_annotations(drift_info, dir, log_matching, log_names):
+
+    categories = [
+        {"supercategory": "drift", "id": 1, "name": "sudden"},
+        {"supercategory": "drift", "id": 2, "name": "gradual"},
+        {"supercategory": "drift", "id": 3, "name": "incremental"},
+        {"supercategory": "drift", "id": 4, "name": "recurring"}
+    ]
+
+    anno_file = {
+        "categories": categories,
+        "images": [],
+        "annotations": []
+    }
+
+    annotation_id = 0
+    img_id = 0
+
+    for log_name in log_names:
+        log_annotation = {}
+        log_info = drift_info.loc[drift_info["log_name"] == log_name]
+        drift_ids = pd.unique(log_info["drift_or_noise_id"])
+
+        img_id = log_matching[log_name]
+        img_name = str(img_id) + ".jpg"
+        img_path = os.path.join(dir, img_name)
+
+        img = Image.open(img_path)
+        width, height = img.size
+        log_img = {
+            "file_name": img_name,
+            "height": height,
+            "width": width,
+            "id": img_id
+        }
+
+        anno_file["images"].append(log_img)
+
+        for drift_id in drift_ids:
+            drift = log_info.loc[log_info["drift_or_noise_id"] == drift_id]
+            drift_type = pd.unique(drift["drift_type"])[0]
+
+            category_id = utils.get_drift_id(drift_type)
+            bbox = get_bbox(drift, drift_type, img.size)
+            area = utils.get_area(width=bbox[2], height=bbox[3])
+            segmentation = utils.get_segmentation(bbox)
+            log_annotation = {
+                "id": annotation_id,
+                "image_id": img_id,
+                "category_id": category_id,
+                "label": drift_type,
+                "bbox": bbox,
+                "area": area,
+                "iscrowd": 0,
+                "ignore": 0,
+                "segmentation": segmentation}
+            anno_file["annotations"].append(log_annotation)
+            annotation_id += 1
+
+        img_id += 1
+
+    annotations_path = os.path.join(dir, "annotations.json")
+    with open(annotations_path, "w", encoding='utf-8') as file:
+        json.dump(anno_file, file)
+
+
+def get_bbox(drift, drift_type, im_size):
+    bbox = utils.special_string_2_list(drift.iloc[0]["vdd_bbox"])
+    if drift_type == "sudden":
+        bbox = get_sudden_bbox_coco(bbox, im_size)
+    return utils.bbox_coco_format(bbox)
+
+
+def get_sudden_bbox_coco(bbox: list, im_size) -> list:
+
+    width, height = im_size
+    # use 2% of image width to enlarge sudden drifts
+    factor = int(width * 0.02)
+
+    # artificially enlarge sudden bboxes for detection
+    if cfg.RESIZE_SUDDEN_BBOX and bbox[0] < factor:
+        bbox[0] = 0
+        bbox[1] = 0
+        bbox[2] += factor
+        bbox[3] = height
+    elif cfg.RESIZE_SUDDEN_BBOX and bbox[0] > factor:
+        if check_image_width(bbox[2] + 10, width):
+            bbox[0] -= factor
+            bbox[1] = 0
+            bbox[2] += factor
+            bbox[3] = height
+        else:
+            bbox[0] -= factor
+            bbox[1] = 0
+            bbox[2] = width
+            bbox[3] = height
+    else:
+        # add at least 10 pixels for width/heigh to detect drifts
+        if check_image_width(bbox[2] + 10, width):
+            bbox[2] += 10
+            bbox[3] = height
+        else:
+            bbox[0] - 10
+            bbox[1] = 0
+            bbox[2] = width
+            bbox[3] = height
     return bbox
 
 
-def update_drift_info_for_vdd(drift_info):
-    #TODO write bbox in drift info for annotations
-    pass
+def check_image_width(value, width):
+    # check if window value would lie outside of image
+    if value > width:
+        return False
+    else:
+        return True

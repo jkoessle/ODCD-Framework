@@ -104,13 +104,15 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
 #TODO Add annotations
 def vdd_pipeline():
     # create experiment folder structure
-    cfg.DEFAULT_DATA_DIR = cnn_utils.create_multilabel_experiment(cfg.DEFAULT_DATA_DIR)
+    cfg.DEFAULT_DATA_DIR = vdd_helper.create_experiment(cfg.DEFAULT_DATA_DIR)
 
     # get all paths and file names of event logs
     log_files = cnn_utils.get_event_log_paths(cfg.DEFAULT_LOG_DIR)
 
     drift_info = vdd_helper.extract_vdd_drift_information(cfg.DEFAULT_LOG_DIR)
 
+    bbox_df = pd.DataFrame()
+    
     # incrementally store number of log based on drift type - for file naming purposes
     drift_number = 1
 
@@ -160,11 +162,26 @@ def vdd_pipeline():
             exp_path=cfg.DEFAULT_DATA_DIR,
             ts_ticks=ts_ticks,
             timestamps=timestamps)
+        
+        bbox_df = vdd_helper.update_bboxes_for_vdd(bbox_df, bboxes, name)
             
         log_matching[name] = drift_number
         
         # increment log number
         drift_number += 1
+        
+    drift_info = vdd_helper.merge_bboxes_with_drift_info(bbox_df, drift_info)
+    
+    vdd_helper.generate_vdd_annotations(drift_info, 
+                                   dir=cfg.DEFAULT_DATA_DIR,
+                                   log_matching=log_matching,
+                                   log_names=log_files.keys())
+
+    if cfg.AUTOMATE_TFR_SCRIPT:
+        seg_utils.start_tfr_script(repo_dir=cfg.TENSORFLOW_MODELS_DIR,
+                                data_dir=cfg.DEFAULT_DATA_DIR,
+                                tfr_dir=cfg.TFR_RECORDS_DIR,
+                                prefix=cfg.OUTPUT_PREFIX)
 
 
 def log_to_windowed_dfg_count(event_log, n_windows):

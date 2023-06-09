@@ -147,7 +147,7 @@ def get_bbox_as_list_coco(df: pd.DataFrame, drift_type: str) -> list:
             [first_row[0], first_row[1], last_row[2], last_row[3]])
 
 
-def get_sudden_bbox_coco(bbox):
+def get_sudden_bbox_coco(bbox:list):
     # artificially enlarge sudden bboxes for detection
     if cfg.RESIZE_SUDDEN_BBOX and bbox[0] < cfg.RESIZE_VALUE:
         bbox[0] = 0
