@@ -17,7 +17,7 @@ from PIL import Image
 
 
 def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
-                                     timestamps, cmap="plasma"):
+                                     timestamps, drift_types, cmap="plasma"):
     ''' the main script that describes drawing of the DriftMAP
     Source:
     https://github.com/yesanton/Process-Drift-Visualization-With-Declare/blob/master/src/visualize_drift_map.py
@@ -38,55 +38,54 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
 
     y_data = np.array(data_c)
 
-    plt.figure(figsize=(8,8))
+    plt.figure(figsize=(8, 8))
     # plt.rcParams['figure.figsize'] = [8, 8]
     ax = plt.gca()
     # ax.set_axis_off()
-    
+
     ax.imshow(y_data, cmap=cmap, interpolation='nearest',
               extent=[min_date, max_date, y_data.shape[0], 0], aspect='auto'
               )
-    
+
     # asp = np.abs(np.diff(ax.get_xlim())[0] / np.diff(ax.get_ylim())[0])
     # ax.set_aspect(asp)
-    
+
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d-%Y'))
     # ax.xaxis.set_major_locator(mdates.DayLocator(interval=180))
-    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
     # plt.gca().set_aspect('equal')
     # ax.set_xticks(ts_ticks_date)
-    plt.gcf().autofmt_xdate()
+    # plt.gcf().autofmt_xdate()
     plt.xticks(rotation=90)
     # ax.set_xlim(min_date,max_date)
     # ax.set_xbound(min_date,max_date)
     # test = ax.get_position()
-    
+
     # Get the x and y data and transform it into pixel coordinates
     # x, y = points.get_data()
-    
+
     # set_size(8,8)
-    
-    
+
     plt.savefig(os.path.join(exp_path, f"{number}.jpg"),
-                #bbox_inches='tight',
-                #pad_inches=0
+                # bbox_inches='tight',
+                # pad_inches=0
                 )
-    
+
     # x = np.array([0.0, 1.0])
     # y = np.array([0.0, 1.0])
     # xy_pixels = ax.transAxes.transform(np.vstack([x,y]).T)
-    
-    x_max, y_max = ax.transAxes.transform((1.0,1.0))
-    x_min, y_min = ax.transAxes.transform((0.0,0.0))
+
+    x_max, y_max = ax.transAxes.transform((1.0, 1.0))
+    x_min, y_min = ax.transAxes.transform((0.0, 0.0))
     fig_bbox = (x_min, y_min, x_max, y_max)
-    
+
     # xpix, ypix = xy_pixels.T
 
-    # In matplotlib, 0,0 is the lower left corner, whereas it's usually the upper 
+    # In matplotlib, 0,0 is the lower left corner, whereas it's usually the upper
     # left for most image software, so we'll flip the y-coords...
     size = plt.gcf().canvas.get_width_height()
     # ypix = height - ypix
-    
+
     # test1 = ax.get_position()
 
     # im = Image.open(os.path.join(exp_path, f"{number}.jpg"))
@@ -110,7 +109,8 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                                                min_date,
                                                max_date,
                                                size,
-                                               fig_bbox)
+                                               fig_bbox,
+                                               drift_types[key])
         else:
             # commented out lines are for debugging
             # line_s = ax.axvline(start, color='red', alpha=1.0, linewidth=1)
@@ -122,9 +122,10 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                                                min_date,
                                                max_date,
                                                size,
-                                               fig_bbox)
+                                               fig_bbox,
+                                               drift_types[key])
 
-    return bboxes
+    return bboxes, fig_bbox
 
 
 def vdd_mine_minerful_for_declare_constraints(log_name: str, path, exp_path):
@@ -156,59 +157,59 @@ def vdd_mine_minerful_for_declare_constraints(log_name: str, path, exp_path):
     if cfg.WINDOWS_SYSTEM:
         subprocess.call(['java',
                         "-Xmx16G",
-                        '-cp',
-                        '.\lib\*;MINERful.jar',
-                        'minerful.MinerFulMinerSlider',
-                        "-iLF",
-                        file_input,
-                        "-iLStartAt",
-                        # 0 here is at which timestamp we start,
-                        # we always start from the first
-                        "0",
-                        "-iLSubLen",
-                        window_size,
-                        "-sliBy",
-                        sliding_window_size,
-                        '-para',
-                        '4',
-                        '-s',
-                        '0.000000001',
-                        '-c',
-                        '0.0',
-                        '-i',
-                        '0.0',
-                        '-prune',
-                        # this is the pruning or not pruning options of constraints
-                        'none',
-                        '-sliOut',
-                        file_output],
+                         '-cp',
+                         '.\lib\*;MINERful.jar',
+                         'minerful.MinerFulMinerSlider',
+                         "-iLF",
+                         file_input,
+                         "-iLStartAt",
+                         # 0 here is at which timestamp we start,
+                         # we always start from the first
+                         "0",
+                         "-iLSubLen",
+                         window_size,
+                         "-sliBy",
+                         sliding_window_size,
+                         '-para',
+                         '4',
+                         '-s',
+                         '0.000000001',
+                         '-c',
+                         '0.0',
+                         '-i',
+                         '0.0',
+                         '-prune',
+                         # this is the pruning or not pruning options of constraints
+                         'none',
+                         '-sliOut',
+                         file_output],
                         env=env,
                         cwd=cwd)
     else:
         subprocess.call(['./run-MINERfulSlider.sh',
                         "-iLF",
-                        file_input,
-                        "-iLStartAt",
-                        # 0 here is at which timestamp we start,
-                        # we always start from the first
-                        "0",
-                        "-iLSubLen",
-                        window_size,
-                        "-sliBy",
-                        sliding_window_size,
-                        '-para',
-                        '4',
-                        '-s',
-                        '0.000000001',
-                        '-c',
-                        '0.0',
-                        '-i',
-                        '0.0',
-                        '-prune',
-                        # this is the pruning or not pruning options of constraints
-                        'none',
-                        '-sliOut',
-                        file_output],
+                         file_input,
+                         "-iLStartAt",
+                         # 0 here is at which timestamp we start,
+                         # we always start from the first
+                         "0",
+                         "-iLSubLen",
+                         window_size,
+                         "-sliBy",
+                         sliding_window_size,
+                         '-para',
+                         '4',
+                         '-s',
+                         '0.000000001',
+                         '-c',
+                         '0.0',
+                         '-i',
+                         '0.0',
+                         '-prune',
+                         # this is the pruning or not pruning options of constraints
+                         'none',
+                         '-sliOut',
+                         file_output],
                         env=env,
                         cwd=cwd)
     return file_output
@@ -392,33 +393,51 @@ def get_drift_moments_timestamps(log_name: str, drift_info: pd.DataFrame) -> dic
     return timestamps
 
 
+def get_drift_types(log_name: str, drift_info: pd.DataFrame) -> dict:
+    log_info = drift_info.loc[drift_info["log_name"] == log_name]
+    drift_ids = pd.unique(log_info["drift_or_noise_id"])
+    drift_types = {}
+    for drift_id in drift_ids:
+        drift = log_info.loc[log_info["drift_or_noise_id"] == drift_id]
+        drift_type = drift.iloc[0]["drift_type"]
+        drift_types[drift_id] = drift_type
+
+    return drift_types
+
+
 def get_bbox_coordinates(start: datetime, end: datetime,
                          min: datetime, max: datetime,
-                         size: tuple, fig_bbox:tuple) -> str:
+                         size: tuple, fig_bbox: tuple,
+                         drift_type: str) -> str:
     relative_start = (mdates.date2num(start) - mdates.date2num(min)) / \
         (mdates.date2num(max) - mdates.date2num(min))
     relative_end = (mdates.date2num(end) - mdates.date2num(min)) / \
         (mdates.date2num(max) - mdates.date2num(min))
-        
+
     f_xmin, f_ymin, f_xmax, f_ymax = fig_bbox
 
     width, height = size
     xmin = int(relative_start * width) + int(f_xmin)
-    xmax = int(relative_end * width) - (int(width - f_xmax))
+    xmax = int(relative_end * width) + int(f_xmin)  # (int(width - f_xmax))
     ymin = int(f_ymin)
     ymax = int(f_ymax)
-    
+
     # ymin = 0, ymax = 1
     # format [xmin, ymin, xmax, ymax]
     # bbox = [start, 0, end, height]
     bbox = [xmin, ymin, xmax, ymax]
+
+    if drift_type == "sudden":
+        bbox = get_sudden_bbox_coco(bbox=bbox,
+                                    f_bbox=fig_bbox,
+                                    im_size=size)
 
     # string for saving in df
     return str(bbox)
 
 
 def update_bboxes_for_vdd(df: pd.DataFrame, bboxes: dict,
-                          log_name: str) -> pd.DataFrame:
+                          log_name: str, fig_bbox: tuple) -> pd.DataFrame:
 
     df_bbox = pd.DataFrame(bboxes.items(),
                            columns=["drift_or_noise_id", "vdd_bbox"])
@@ -434,7 +453,8 @@ def update_bboxes_for_vdd(df: pd.DataFrame, bboxes: dict,
 
 def merge_bboxes_with_drift_info(bboxes_df: pd.DataFrame,
                                  drift_info: pd.DataFrame) -> pd.DataFrame:
-    drift_info = pd.merge(drift_info, bboxes_df, on=["log_name", "drift_or_noise_id"])
+    drift_info = pd.merge(drift_info, bboxes_df, on=[
+                          "log_name", "drift_or_noise_id"])
     return drift_info
 
 
@@ -523,44 +543,46 @@ def generate_vdd_annotations(drift_info, dir, log_matching, log_names):
 
 def get_bbox(drift, drift_type, im_size):
     bbox = utils.special_string_2_list(drift.iloc[0]["vdd_bbox"])
-    if drift_type == "sudden":
-        bbox = get_sudden_bbox_coco(bbox, im_size)
+    # if drift_type == "sudden":
+    #     bbox = get_sudden_bbox_coco(bbox, im_size)
     return utils.bbox_coco_format(bbox)
 
 
-def get_sudden_bbox_coco(bbox: list, im_size) -> list:
-
+def get_sudden_bbox_coco(bbox: list, f_bbox: tuple, im_size) -> list:
+    f_xmin, f_ymin, f_xmax, f_ymax = f_bbox
+    f_xmin, f_ymin, f_xmax, f_ymax = int(f_xmin), int(f_ymin), \
+        int(f_xmax), int(f_ymax)
     width, height = im_size
     # use 2% of image width to enlarge sudden drifts
     factor = int(width * 0.02)
 
     # artificially enlarge sudden bboxes for detection
     if cfg.RESIZE_SUDDEN_BBOX and bbox[0] < factor:
-        bbox[0] = 0
-        bbox[1] = 0
-        bbox[2] += factor
-        bbox[3] = height
+        bbox[0] = f_xmin  # xmin
+        bbox[1] = f_ymin  # ymin
+        bbox[2] += factor  # xmax
+        bbox[3] = f_ymax  # ymax
     elif cfg.RESIZE_SUDDEN_BBOX and bbox[0] > factor:
-        if check_image_width(bbox[2] + 10, width):
+        if check_image_width(bbox[2] + 10, f_xmax):
             bbox[0] -= factor
-            bbox[1] = 0
+            bbox[1] = f_ymin
             bbox[2] += factor
-            bbox[3] = height
+            bbox[3] = f_ymax
         else:
             bbox[0] -= factor
-            bbox[1] = 0
-            bbox[2] = width
-            bbox[3] = height
+            bbox[1] = f_ymin
+            bbox[2] = f_xmax
+            bbox[3] = f_ymax
     else:
         # add at least 10 pixels for width/heigh to detect drifts
-        if check_image_width(bbox[2] + 10, width):
+        if check_image_width(bbox[2] + 10, f_xmax):
             bbox[2] += 10
-            bbox[3] = height
+            bbox[3] = f_ymax
         else:
             bbox[0] - 10
-            bbox[1] = 0
-            bbox[2] = width
-            bbox[3] = height
+            bbox[1] = f_ymin
+            bbox[2] = f_xmax
+            bbox[3] = f_ymax
     return bbox
 
 
@@ -570,12 +592,12 @@ def check_image_width(value, width):
         return False
     else:
         return True
-    
-    
+
+
 def get_relative_plot_coordinates(xmin, ymin, xmax, ymax, width, height):
     xmin = xmin / width
     xmax = 1 - xmax / width
     ymin = ymin / height
     ymax = 1 - ymax / height
-    
+
     return (xmin, ymin, xmax, ymax)

@@ -129,9 +129,6 @@ def vdd_pipeline():
 
         # if the log contains incomplete traces, the log is filtered
         filtered_log = cnn_utils.filter_complete_events(event_log)
-        
-        timestamps = vdd_helper.get_drift_moments_timestamps(log_name=name, 
-                                                             drift_info=drift_info)
 
         minerful_csv_path = vdd_helper.vdd_mine_minerful_for_declare_constraints(
             name,
@@ -155,15 +152,22 @@ def vdd_pipeline():
             clusters_dict, \
             cluster_order = \
             vdd.do_cluster_changePoint(constraints, cp_all=cfg.CP_ALL)
+            
+        timestamps = vdd_helper.get_drift_moments_timestamps(log_name=name, 
+                                                             drift_info=drift_info)
         
-        bboxes = vdd_helper.vdd_draw_drift_map_with_clusters(
+        drift_types = vdd_helper.get_drift_types(log_name=name,
+                                                 drift_info=drift_info)
+        
+        bboxes, fig_bbox = vdd_helper.vdd_draw_drift_map_with_clusters(
             data=constraints,
             number=drift_number,
             exp_path=cfg.DEFAULT_DATA_DIR,
             ts_ticks=ts_ticks,
-            timestamps=timestamps)
+            timestamps=timestamps,
+            drift_types=drift_types)
         
-        bbox_df = vdd_helper.update_bboxes_for_vdd(bbox_df, bboxes, name)
+        bbox_df = vdd_helper.update_bboxes_for_vdd(bbox_df, bboxes, name, fig_bbox)
             
         log_matching[name] = drift_number
         
@@ -171,6 +175,14 @@ def vdd_pipeline():
         drift_number += 1
         
     drift_info = vdd_helper.merge_bboxes_with_drift_info(bbox_df, drift_info)
+    
+    if cfg.DEBUG:
+        drift_info.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "drift_info.csv"))
+        
+        log_matching_df = pd.DataFrame.from_dict(log_matching, 
+                                                 orient="index", 
+                                                 columns=["image_id"])
+        log_matching_df.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "log_matching.csv"))
     
     vdd_helper.generate_vdd_annotations(drift_info, 
                                    dir=cfg.DEFAULT_DATA_DIR,
