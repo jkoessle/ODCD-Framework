@@ -7,7 +7,7 @@ import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
-import object_segmentation.utils.config as cfg
+from . import config as cfg
 
 from PIL import Image
 from official.vision.dataloaders.tf_example_decoder import TfExampleDecoder
@@ -147,7 +147,7 @@ def get_bbox_as_list_coco(df: pd.DataFrame, drift_type: str) -> list:
             [first_row[0], first_row[1], last_row[2], last_row[3]])
 
 
-def get_sudden_bbox_coco(bbox:list):
+def get_sudden_bbox_coco(bbox: list):
     # artificially enlarge sudden bboxes for detection
     if cfg.RESIZE_SUDDEN_BBOX and bbox[0] < cfg.RESIZE_VALUE:
         bbox[0] = 0
@@ -379,7 +379,7 @@ def get_ex_decoder():
     return category_index, tf_ex_decoder
 
 
-def visualize_batch(path, mode, n_examples=3):
+def visualize_batch(path, mode, seed, n_examples=3):
 
     # dynamically create subplots based on n_examples
     columns = 3
@@ -392,7 +392,7 @@ def visualize_batch(path, mode, n_examples=3):
 
     data = tf.data.TFRecordDataset(
         path).shuffle(
-        buffer_size=cfg.EVAL_EXAMPLES).take(n_examples)
+        buffer_size=cfg.EVAL_EXAMPLES, seed=seed).take(n_examples)
 
     plt.figure(figsize=(20, 20))
     use_normalized_coordinates = True
@@ -422,7 +422,7 @@ def visualize_batch(path, mode, n_examples=3):
                 bbox_inches="tight")
 
 
-def visualize_predictions(path, mode, model, n_examples=3, threshold=0.30):
+def visualize_predictions(path, mode, model, seed, n_examples=3, threshold=0.50):
 
     # dynamically create subplots based on n_examples
     columns = 3
@@ -438,7 +438,7 @@ def visualize_predictions(path, mode, model, n_examples=3, threshold=0.30):
 
     data = tf.data.TFRecordDataset(
         path).shuffle(
-        buffer_size=cfg.EVAL_EXAMPLES).take(n_examples)
+        buffer_size=cfg.EVAL_EXAMPLES, seed=seed).take(n_examples)
 
     plt.figure(figsize=(20, 20))
 

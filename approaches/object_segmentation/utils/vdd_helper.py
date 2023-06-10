@@ -38,21 +38,58 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
 
     y_data = np.array(data_c)
 
+    plt.figure(figsize=(8,8))
+    # plt.rcParams['figure.figsize'] = [8, 8]
     ax = plt.gca()
-    ax.set_axis_off()
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d-%Y'))
-    ax.xaxis.set_major_locator(mdates.DayLocator())
-    ax.set_xticks(ts_ticks_date)
-
+    # ax.set_axis_off()
+    
     ax.imshow(y_data, cmap=cmap, interpolation='nearest',
-              extent=[min_date, max_date, y_data.shape[0], 0], aspect='auto')
-
+              extent=[min_date, max_date, y_data.shape[0], 0], aspect='auto'
+              )
+    
+    # asp = np.abs(np.diff(ax.get_xlim())[0] / np.diff(ax.get_ylim())[0])
+    # ax.set_aspect(asp)
+    
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d-%Y'))
+    # ax.xaxis.set_major_locator(mdates.DayLocator(interval=180))
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
+    # plt.gca().set_aspect('equal')
+    # ax.set_xticks(ts_ticks_date)
+    plt.gcf().autofmt_xdate()
+    plt.xticks(rotation=90)
+    # ax.set_xlim(min_date,max_date)
+    # ax.set_xbound(min_date,max_date)
+    # test = ax.get_position()
+    
+    # Get the x and y data and transform it into pixel coordinates
+    # x, y = points.get_data()
+    
+    # set_size(8,8)
+    
+    
     plt.savefig(os.path.join(exp_path, f"{number}.jpg"),
-                bbox_inches='tight',
-                pad_inches=0
+                #bbox_inches='tight',
+                #pad_inches=0
                 )
+    
+    # x = np.array([0.0, 1.0])
+    # y = np.array([0.0, 1.0])
+    # xy_pixels = ax.transAxes.transform(np.vstack([x,y]).T)
+    
+    x_max, y_max = ax.transAxes.transform((1.0,1.0))
+    x_min, y_min = ax.transAxes.transform((0.0,0.0))
+    fig_bbox = (x_min, y_min, x_max, y_max)
+    
+    # xpix, ypix = xy_pixels.T
 
-    im = Image.open(os.path.join(exp_path, f"{number}.jpg"))
+    # In matplotlib, 0,0 is the lower left corner, whereas it's usually the upper 
+    # left for most image software, so we'll flip the y-coords...
+    size = plt.gcf().canvas.get_width_height()
+    # ypix = height - ypix
+    
+    # test1 = ax.get_position()
+
+    # im = Image.open(os.path.join(exp_path, f"{number}.jpg"))
 
     bboxes = {}
 
@@ -72,7 +109,8 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                                                start,
                                                min_date,
                                                max_date,
-                                               im.size)
+                                               size,
+                                               fig_bbox)
         else:
             # commented out lines are for debugging
             # line_s = ax.axvline(start, color='red', alpha=1.0, linewidth=1)
@@ -83,7 +121,8 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                                                end,
                                                min_date,
                                                max_date,
-                                               im.size)
+                                               size,
+                                               fig_bbox)
 
     return bboxes
 
@@ -355,19 +394,24 @@ def get_drift_moments_timestamps(log_name: str, drift_info: pd.DataFrame) -> dic
 
 def get_bbox_coordinates(start: datetime, end: datetime,
                          min: datetime, max: datetime,
-                         size: tuple) -> str:
+                         size: tuple, fig_bbox:tuple) -> str:
     relative_start = (mdates.date2num(start) - mdates.date2num(min)) / \
         (mdates.date2num(max) - mdates.date2num(min))
     relative_end = (mdates.date2num(end) - mdates.date2num(min)) / \
         (mdates.date2num(max) - mdates.date2num(min))
+        
+    f_xmin, f_ymin, f_xmax, f_ymax = fig_bbox
 
     width, height = size
-    start = int(relative_start * width)
-    end = int(relative_end * width)
-
+    xmin = int(relative_start * width) + int(f_xmin)
+    xmax = int(relative_end * width) - (int(width - f_xmax))
+    ymin = int(f_ymin)
+    ymax = int(f_ymax)
+    
     # ymin = 0, ymax = 1
     # format [xmin, ymin, xmax, ymax]
-    bbox = [start, 0, end, height]
+    # bbox = [start, 0, end, height]
+    bbox = [xmin, ymin, xmax, ymax]
 
     # string for saving in df
     return str(bbox)
@@ -526,3 +570,12 @@ def check_image_width(value, width):
         return False
     else:
         return True
+    
+    
+def get_relative_plot_coordinates(xmin, ymin, xmax, ymax, width, height):
+    xmin = xmin / width
+    xmax = 1 - xmax / width
+    ymin = ymin / height
+    ymax = 1 - ymax / height
+    
+    return (xmin, ymin, xmax, ymax)

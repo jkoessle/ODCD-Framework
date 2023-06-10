@@ -54,7 +54,7 @@ def train(model_dir=cfg.MODEL_PATH, output_dir=cfg.DEFAULT_OUTPUT_DIR):
         run_post_eval=True)
 
     # TODO
-    save_options = tf.saved_model.SaveOptions()
+    save_options = tf.saved_model.SaveOptions(experimental_custom_gradients=True)
 
     export_saved_model_lib.export_inference_graph(
         input_type='image_tensor',
