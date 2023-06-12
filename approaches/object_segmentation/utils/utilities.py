@@ -99,6 +99,10 @@ def special_string_2_list(s):
     return list(map(int, s.translate({ord(i): None for i in "[]"}).split(",")))
 
 
+def special_string_2_list_float(s):
+    return list(map(float, s.translate({ord(i): None for i in "[]"}).split(",")))
+
+
 def bbox_corner_to_center(box):
     xmin, ymin, xmax, ymax = box[0], box[1], box[2], box[3]
     x = (xmin + xmax) / 2

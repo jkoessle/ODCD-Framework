@@ -130,17 +130,18 @@ def vdd_pipeline():
         # if the log contains incomplete traces, the log is filtered
         filtered_log = cnn_utils.filter_complete_events(event_log)
 
-        minerful_csv_path = vdd_helper.vdd_mine_minerful_for_declare_constraints(
-            name,
-            log_path,
-            cfg.DEFAULT_DATA_DIR
-            )
+        if cfg.MINE_CONSTRAINTS:
+            minerful_csv_path = vdd_helper.vdd_mine_minerful_for_declare_constraints(
+                name,
+                log_path,
+                cfg.DEFAULT_DATA_DIR
+                )
+        else:
+            minerful_csv_path = vdd_helper.get_minerful_constraints_path(log_name=name,
+                                                                         constraints_dir=cfg.CONSTRAINTS_DIR)
 
         ts_ticks = vdd_helper.vdd_save_separately_timestamp_for_each_constraint_window(
                 filtered_log)
-        
-        # for debugging:
-        # minerful_csv_path = ""
 
         constraints = vdd_helper.vdd_import_minerful_constraints_timeseries_data(
             minerful_csv_path)

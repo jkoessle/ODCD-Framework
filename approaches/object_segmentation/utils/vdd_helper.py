@@ -38,7 +38,7 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
 
     y_data = np.array(data_c)
 
-    plt.figure(figsize=(8, 8))
+    plt.figure(figsize=(10, 10))
     # plt.rcParams['figure.figsize'] = [8, 8]
     ax = plt.gca()
     # ax.set_axis_off()
@@ -50,21 +50,23 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
     # asp = np.abs(np.diff(ax.get_xlim())[0] / np.diff(ax.get_ylim())[0])
     # ax.set_aspect(asp)
 
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d-%Y'))
-    # ax.xaxis.set_major_locator(mdates.DayLocator(interval=180))
-    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
-    # plt.gca().set_aspect('equal')
-    # ax.set_xticks(ts_ticks_date)
-    # plt.gcf().autofmt_xdate()
-    plt.xticks(rotation=90)
+    
+    if cfg.KEEP_AXIS:
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d-%Y'))
+        # ax.xaxis.set_major_locator(mdates.DayLocator(interval=180))
+        ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+        # plt.gca().set_aspect('equal')
+        # ax.set_xticks(ts_ticks_date)
+        # plt.gcf().autofmt_xdate()
+        plt.xticks(rotation=90)
+    else:
+        ax.set_axis_off()
     # ax.set_xlim(min_date,max_date)
     # ax.set_xbound(min_date,max_date)
     # test = ax.get_position()
 
     # Get the x and y data and transform it into pixel coordinates
     # x, y = points.get_data()
-
-    # set_size(8,8)
 
     plt.savefig(os.path.join(exp_path, f"{number}.jpg"),
                 # bbox_inches='tight',
@@ -85,6 +87,15 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
     # ypix = height - ypix
 
     # test1 = ax.get_position()
+    # y_lim = ax.get_ylim()
+    # x_lim = ax.get_xlim()
+    # test4 = plt.gca().get_ylim
+    # transform_data = ax.transData.transform((test2))
+    # transform_axes = ax.transAxes.transform((test2))
+    
+    # transform_zero = ax.transData.transform((x_lim[0],y_lim[0]))
+    
+    # test = mdates.num2date(transform[0])
 
     # im = Image.open(os.path.join(exp_path, f"{number}.jpg"))
 
@@ -100,7 +111,7 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
 
         if start == end:
             # commented out lines are for debugging
-            # line = ax.axvline(start, color='red', alpha=1.0)
+            # line_s = ax.axvline(start, color='red', alpha=1.0)
             # start_date = line.get_xdata()[0]
             bboxes[key] = get_bbox_coordinates(start,
                                                start,
@@ -122,7 +133,6 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                                                size,
                                                fig_bbox,
                                                drift_types[key])
-
     return bboxes, fig_bbox
 
 
@@ -419,10 +429,20 @@ def get_bbox_coordinates(start: datetime, end: datetime,
     width, height = (f_xmax - f_xmin), (f_ymax - f_ymin)
     size = (width, height)
     
-    xmin = int(relative_start * width) + int(f_xmin)
-    xmax = int(relative_end * width) + int(f_xmin)  # (int(width - f_xmax))
-    ymin = int(f_ymin)
-    ymax = int(f_ymax)
+    # xmin = int(relative_start * width) + int(f_xmin)
+    # xmax = int(relative_end * width) + int(f_xmin)  # (int(width - f_xmax))
+    # ymin = int(f_ymin)
+    # ymax = int(f_ymax)
+    
+    xmin = relative_start * width + f_xmin
+    xmax = relative_end * width + f_xmin # (int(width - f_xmax))
+    if cfg.KEEP_AXIS:
+        # hardcoded for figsize (10,10)
+        ymin = f_ymin + 10
+        ymax = f_ymax + 10
+    else:
+        ymin = f_xmin
+        ymax = f_ymax
 
     # ymin = 0, ymax = 1
     # format [xmin, ymin, xmax, ymax]
@@ -546,7 +566,7 @@ def generate_vdd_annotations(drift_info, dir, log_matching, log_names):
 
 
 def get_bbox(drift, drift_type, im_size):
-    bbox = utils.special_string_2_list(drift.iloc[0]["vdd_bbox"])
+    bbox = utils.special_string_2_list_float(drift.iloc[0]["vdd_bbox"])
     # if drift_type == "sudden":
     #     bbox = get_sudden_bbox_coco(bbox, im_size)
     return utils.bbox_coco_format(bbox)
@@ -554,18 +574,25 @@ def get_bbox(drift, drift_type, im_size):
 
 def get_sudden_bbox_coco(bbox: list, f_bbox: tuple, im_size) -> list:
     f_xmin, f_ymin, f_xmax, f_ymax = f_bbox
-    f_xmin, f_ymin, f_xmax, f_ymax = int(f_xmin), int(f_ymin), \
-        int(f_xmax), int(f_ymax)
+    # f_xmin, f_ymin, f_xmax, f_ymax = int(f_xmin), int(f_ymin), \
+    #     int(f_xmax), int(f_ymax)
+    # f_xmin, f_ymin, f_xmax, f_ymax = f_xmin, f_ymin, \
+    #     f_xmax, f_ymax
     # width, height = im_size
     # use 2% of image width to enlarge sudden drifts
-    factor = int(f_xmax * 0.02)
+    factor = f_xmax * 0.02
+    
+    if cfg.KEEP_AXIS:
+        # hardcoded for figsize (10,10)
+        f_ymin = f_ymin + 10
+        f_ymax = f_ymax + 10
 
     # artificially enlarge sudden bboxes for detection
     if cfg.RESIZE_SUDDEN_BBOX and bbox[0] < (factor + f_xmin):
         bbox[0] = f_xmin  # xmin
-        bbox[1] = f_ymin  # ymin
+        bbox[1] = f_ymin # ymin
         bbox[2] += factor  # xmax
-        bbox[3] = f_ymax  # ymax
+        bbox[3] = f_ymax # ymax
     elif cfg.RESIZE_SUDDEN_BBOX and bbox[0] > (factor + f_xmin):
         if check_image_width(bbox[2] + factor, f_xmax):
             bbox[0] -= factor
@@ -612,11 +639,31 @@ def validate_bbox(bbox, f_bbox):
     f_xmin, f_ymin, f_xmax, f_ymax = f_bbox
     
     if xmax > f_xmax:
-        xmax = int(f_xmax)
+        xmax = f_xmax
     
     if xmin < f_xmin:
-        xmin = int(f_xmin)
+        xmin = f_xmin
     
     return [xmin, ymin, xmax, ymax]
+
+
+def get_minerful_constraints_path(log_name: str, constraints_dir: str):
+    """WARNING: Be careful with this function! 
+    All event logs that are used must have corresponding constraints from MINERful!
+
+    Args:
+        log_name (str): Name of event log.
+        constraints_dir (str): Directory, where MINERful contraints are saved.
+    """
+    
+    log_name = log_name.split(".")[0]
+    constraints_path = os.path.join(constraints_dir, f"{log_name}.csv")
+    
+    if os.path.isfile(constraints_path):
+        return constraints_path
+    else:
+        raise FileNotFoundError(f"The provided event log {log_name} does not have a \
+                                corresponding MINERful constraint yet. \
+                                Please mine constraints with MINERful first.")
     
     
