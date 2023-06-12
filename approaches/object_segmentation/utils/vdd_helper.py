@@ -81,8 +81,6 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
 
     # xpix, ypix = xy_pixels.T
 
-    # In matplotlib, 0,0 is the lower left corner, whereas it's usually the upper
-    # left for most image software, so we'll flip the y-coords...
     size = plt.gcf().canvas.get_width_height()
     # ypix = height - ypix
 
@@ -416,7 +414,11 @@ def get_bbox_coordinates(start: datetime, end: datetime,
 
     f_xmin, f_ymin, f_xmax, f_ymax = fig_bbox
 
-    width, height = size
+    # width, height = size
+    
+    width, height = (f_xmax - f_xmin), (f_ymax - f_ymin)
+    size = (width, height)
+    
     xmin = int(relative_start * width) + int(f_xmin)
     xmax = int(relative_end * width) + int(f_xmin)  # (int(width - f_xmax))
     ymin = int(f_ymin)
@@ -431,6 +433,8 @@ def get_bbox_coordinates(start: datetime, end: datetime,
         bbox = get_sudden_bbox_coco(bbox=bbox,
                                     f_bbox=fig_bbox,
                                     im_size=size)
+    else:
+        bbox = validate_bbox(bbox, fig_bbox)
 
     # string for saving in df
     return str(bbox)
@@ -552,18 +556,18 @@ def get_sudden_bbox_coco(bbox: list, f_bbox: tuple, im_size) -> list:
     f_xmin, f_ymin, f_xmax, f_ymax = f_bbox
     f_xmin, f_ymin, f_xmax, f_ymax = int(f_xmin), int(f_ymin), \
         int(f_xmax), int(f_ymax)
-    width, height = im_size
+    # width, height = im_size
     # use 2% of image width to enlarge sudden drifts
-    factor = int(width * 0.02)
+    factor = int(f_xmax * 0.02)
 
     # artificially enlarge sudden bboxes for detection
-    if cfg.RESIZE_SUDDEN_BBOX and bbox[0] < factor:
+    if cfg.RESIZE_SUDDEN_BBOX and bbox[0] < (factor + f_xmin):
         bbox[0] = f_xmin  # xmin
         bbox[1] = f_ymin  # ymin
         bbox[2] += factor  # xmax
         bbox[3] = f_ymax  # ymax
-    elif cfg.RESIZE_SUDDEN_BBOX and bbox[0] > factor:
-        if check_image_width(bbox[2] + 10, f_xmax):
+    elif cfg.RESIZE_SUDDEN_BBOX and bbox[0] > (factor + f_xmin):
+        if check_image_width(bbox[2] + factor, f_xmax):
             bbox[0] -= factor
             bbox[1] = f_ymin
             bbox[2] += factor
@@ -601,3 +605,18 @@ def get_relative_plot_coordinates(xmin, ymin, xmax, ymax, width, height):
     ymax = 1 - ymax / height
 
     return (xmin, ymin, xmax, ymax)
+
+
+def validate_bbox(bbox, f_bbox):
+    xmin, ymin, xmax, ymax = bbox
+    f_xmin, f_ymin, f_xmax, f_ymax = f_bbox
+    
+    if xmax > f_xmax:
+        xmax = int(f_xmax)
+    
+    if xmin < f_xmin:
+        xmin = int(f_xmin)
+    
+    return [xmin, ymin, xmax, ymax]
+    
+    
