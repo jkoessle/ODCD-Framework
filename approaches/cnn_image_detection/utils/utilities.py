@@ -1,7 +1,7 @@
 import os
 import datetime
 import pytz
-import utils.config as cfg
+from . import config as cfg
 import pm4py as pm
 import polars as pl
 import pandas as pd
@@ -18,14 +18,14 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from itertools import combinations, chain, tee
 
 
-def get_event_log_paths():
+def get_event_log_paths(dir):
     list_of_files = {}
-    for dir_path, dir_names, filenames in os.walk(cfg.DEFAULT_LOG_DIR):
+    for dir_path, dir_names, filenames in os.walk(dir):
         for filename in filenames:
             if filename.endswith('.xes'):
                 list_of_files[filename] = dir_path
 
-    assert len(list_of_files) > 0, f"{cfg.DEFAULT_LOG_DIR} is empty"
+    assert len(list_of_files) > 0, f"{dir} is empty"
 
     return list_of_files
 
@@ -56,11 +56,6 @@ def filter_complete_events(log: EventLog):
         filtered_log = log
 
     return filtered_log
-
-
-#TODO
-def export_nested_log_information(log_info):
-    pass
 
 
 def get_nested_log_information(log: EventLog) -> tuple[dict, dict]:
@@ -155,11 +150,11 @@ def create_experiment():
     return exp_path
 
 
-def create_multilabel_experiment():
+def create_multilabel_experiment(dir):
 
     timestamp = get_timestamp()
 
-    exp_path = os.path.join(cfg.DEFAULT_DATA_DIR, f"experiment_{timestamp}")
+    exp_path = os.path.join(dir, f"experiment_{timestamp}")
     os.makedirs(exp_path)
 
     print(f"Experiment created at {exp_path}")

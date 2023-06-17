@@ -18,7 +18,7 @@ def preprocessing_pipeline(n_windows=100, p_mode="train"):
     cfg.DEFAULT_DATA_DIR = utils.create_experiment()
 
     # get all paths and file names of event logs
-    log_files = utils.get_event_log_paths()
+    log_files = utils.get_event_log_paths(cfg.DEFAULT_LOG_DIR)
 
     # incrementally store number of log based on drift type - for file naming purposes
     log_numbers = defaultdict(lambda: 0)
@@ -35,7 +35,7 @@ def preprocessing_pipeline(n_windows=100, p_mode="train"):
             noise_info, drift_info = utils.get_nested_log_information(
                 event_log)
             # log_number = drift_info["log_id"]
-            drift_type = drift_info["drift_type"]
+            drift_type = drift_info["drift_1"]["children"]["drift_type"]
         elif p_mode == "eval":
             drift_type = "eval"
 
@@ -54,15 +54,15 @@ def preprocessing_pipeline(n_windows=100, p_mode="train"):
         # save matrix as image
         utils.matrix_to_img(matrix=sim_matrix, number=log_numbers[drift_type],
                             drift_type=drift_type, exp_path=cfg.DEFAULT_DATA_DIR,
-                            mode="color")
+                            mode=cfg.COLOR)
 
 
 def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
     # create experiment folder structure
-    cfg.DEFAULT_DATA_DIR = utils.create_multilabel_experiment()
+    cfg.DEFAULT_DATA_DIR = utils.create_multilabel_experiment(cfg.DEFAULT_DATA_DIR)
 
     # get all paths and file names of event logs
-    log_files = utils.get_event_log_paths()
+    log_files = utils.get_event_log_paths(cfg.DEFAULT_LOG_DIR)
 
     # incrementally store number of log based on drift type - for file naming purposes
     drift_number = 1
@@ -109,7 +109,7 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
         # save matrix as image
         utils.matrix_to_img(matrix=sim_matrix, number=drift_number,
                             drift_type=drift_type, exp_path=cfg.DEFAULT_DATA_DIR,
-                            mode="color")
+                            mode=cfg.COLOR)
         
         # increment log number
         drift_number  += 1
@@ -124,7 +124,7 @@ def log_to_windowed_dfg_count(event_log, n_windows):
     event_log_df = log_converter.apply(
         event_log, variant=log_converter.Variants.TO_DATA_FRAME)
     event_log_df = dataframe_utils.convert_timestamp_columns_in_df(
-        event_log_df)
+        event_log_df, timest_format="ISO8601")
 
     # get unique event names
     act_names = np.unique(event_log_df["concept:name"])
@@ -206,7 +206,9 @@ def similarity_calculation(windowed_dfg):
             if (i == j) or (sim_matrix[i, j] != 0):
                 continue
             else:
-                sim_matrix[i, j] = calc_distance_norm(matrix_i, matrix_j)
+                sim_matrix[i, j] = calc_distance_norm(matrix_i, 
+                                                      matrix_j, 
+                                                      cfg.DISTANCE_MEASURE)
                 sim_matrix[j, i] = sim_matrix[i, j]
             # sim_matrix[i, j] = calc_distance_norm(matrix_i, matrix_j)
 
@@ -230,7 +232,7 @@ def similarity_calculation(windowed_dfg):
     return img_matrix
 
 
-def calc_distance_norm(matrix_1, matrix_2, option="fro"):
+def calc_distance_norm(matrix_1, matrix_2, option):
     diff = matrix_1 - matrix_2
     if option == "fro":
         # Frobenius norm
@@ -240,7 +242,7 @@ def calc_distance_norm(matrix_1, matrix_2, option="fro"):
         dist_value = LA.norm(diff, "nuc")
     elif option == "inf":
         # max norm
-        dist_value = LA.norm(diff, "inf")
+        dist_value = LA.norm(diff, np.inf)
     elif option == "l2":
         # L2 norm
         dist_value = LA.norm(diff, 2)
