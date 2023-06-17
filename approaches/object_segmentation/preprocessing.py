@@ -101,7 +101,7 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
                                 tfr_dir=cfg.TFR_RECORDS_DIR,
                                 prefix=cfg.OUTPUT_PREFIX)
         
-#TODO Add annotations
+
 def vdd_pipeline():
     # create experiment folder structure
     cfg.DEFAULT_DATA_DIR = vdd_helper.create_experiment(cfg.DEFAULT_DATA_DIR)
@@ -146,13 +146,17 @@ def vdd_pipeline():
         constraints = vdd_helper.vdd_import_minerful_constraints_timeseries_data(
             minerful_csv_path)
 
-        constraints, \
-            cluster_bounds, \
-            horisontal_separation_bounds_by_cluster, \
-            clusters_with_declare_names, \
-            clusters_dict, \
-            cluster_order = \
-            vdd.do_cluster_changePoint(constraints, cp_all=cfg.CP_ALL)
+        # workaround
+        try:
+            constraints, \
+                cluster_bounds, \
+                horisontal_separation_bounds_by_cluster, \
+                clusters_with_declare_names, \
+                clusters_dict, \
+                cluster_order = \
+                vdd.do_cluster_changePoint(constraints, cp_all=cfg.CP_ALL)
+        except ValueError:
+            break
             
         timestamps = vdd_helper.get_drift_moments_timestamps(log_name=name, 
                                                              drift_info=drift_info)
