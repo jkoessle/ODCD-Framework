@@ -1986,6 +1986,18 @@ files = [
 test = ["enum34", "ipaddress", "mock", "pywin32", "wmi"]
 
 [[package]]
+name = "pulp"
+version = "2.7.0"
+description = "PuLP is an LP modeler written in python. PuLP can generate MPS or LP files and call GLPK, COIN CLP/CBC, CPLEX, and GUROBI to solve linear problems."
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "PuLP-2.7.0-py3-none-any.whl", hash = "sha256:b6de42c929e80325bf44cc7a2997f02535440800c376b9eb8cb7b4670ed53769"},
+    {file = "PuLP-2.7.0.tar.gz", hash = "sha256:e73ee6b32d639c9b8cf4b4aded334ba158be5f8313544e056f796ace0a10ae63"},
+]
+
+[[package]]
 name = "py-cpuinfo"
 version = "9.0.0"
 description = "Get CPU info with pure Python"
@@ -3743,4 +3755,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.10"
-content-hash = "8b0db289c6aa9066f68c8d66a9ed273f0535ae049a414814b525a5976f10726b"
+content-hash = "4970585d11334c41d9500d7cda9f316cafc7272981a9ffdb26f0f2550a564228"

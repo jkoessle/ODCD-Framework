@@ -593,40 +593,6 @@ def get_model_config(model_dir):
     return exp_config
 
 
-# TODO
-def get_drift_moments(log_dir, eval_dir, model, threshold=0.5):
-
-    data = tf.data.TFRecordDataset(eval_dir)
-    input_image_size = cfg.IMAGE_SIZE
-    model_fn = model.signatures['serving_default']
-
-    category_index, tf_ex_decoder = get_ex_decoder()
-
-    for i, tfr_tensor in enumerate(data):
-        decoded_tensor = tf_ex_decoder.decode(tfr_tensor)
-        image = build_inputs_for_object_detection(
-            decoded_tensor['image'], input_image_size)
-        image = tf.expand_dims(image, axis=0)
-        image = tf.cast(image, dtype=tf.uint8)
-        # image_np = image[0].numpy()
-        result = model_fn(image)
-
-        # result = np.where(result['detection_scores'][0].numpy() > threshold)
-
-        scores = result['detection_scores'][0].numpy()
-
-        bbox_true = decoded_tensor['groundtruth_boxes'].numpy() * cfg.N_WINDOWS
-        bbox_pred = result['detection_boxes'][0].numpy() / cfg.TARGETSIZE \
-            * cfg.N_WINDOWS
-
-        bbox_pred = bbox_pred[scores > threshold]
-
-        y_true = decoded_tensor['groundtruth_classes'].numpy().astype(int)
-        y_pred = result['detection_classes'][0].numpy().astype(int)
-
-        y_pred = y_pred[bbox_pred]
-
-
 def matrix_to_img(matrix, number, exp_path, mode="color"):
 
     if mode == "color":

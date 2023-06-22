@@ -32,6 +32,7 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
 
     log_matching = {}
     window_info = {}
+    date_info = {}
 
     # iterate through log files
     for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs",
@@ -43,20 +44,8 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
         # if the log contains incomplete traces, the log is filtered
         filtered_log = cnn_utils.filter_complete_events(event_log)
 
-        # TODO outsource to function - save info as csv/dataframe
-        # if p_mode == "train":
-
-        #     log_info = drift_info.loc[drift_info["log_name"] == name]
-
-        #     drift_types = pd.unique(log_info["drift_type"])
-
-        #     drift_type = "_".join(drift_types)
-
-        # elif p_mode == "eval":
-        #     drift_type = name
-
-        windowed_dfg_matrices, borders, window_information = log_to_windowed_dfg_count(
-            filtered_log, n_windows)
+        windowed_dfg_matrices, borders, window_information, log_date_info = \
+            log_to_windowed_dfg_count(filtered_log, n_windows)
         
         window_info[name] = window_information
 
@@ -65,9 +54,8 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
         # get similarity matrix
         sim_matrix = similarity_calculation(windowed_dfg_matrices)
 
-        # log_name = name.split(".")[0]
-
         log_matching[name] = drift_number
+        date_info[name] = log_date_info
 
         # save matrix as image
         seg_utils.matrix_to_img(matrix=sim_matrix, 
@@ -78,17 +66,20 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
         # increment log number
         drift_number += 1
 
-    if cfg.DEBUG:
-        drift_info.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "drift_info.csv"))
-        
-        log_matching_df = pd.DataFrame.from_dict(log_matching, 
-                                                 orient="index", 
-                                                 columns=["image_id"])
-        log_matching_df.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "log_matching.csv"))
+    drift_info.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "drift_info.csv"))
+    
+    log_matching_df = pd.DataFrame.from_dict(log_matching, 
+                                                orient="index", 
+                                                columns=["image_id"])
+    log_matching_df.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "log_matching.csv"))
     
     window_info_path = os.path.join(cfg.DEFAULT_DATA_DIR, "window_info.json")
     with open(window_info_path, "w", encoding='utf-8') as file:
         json.dump(window_info, file)
+        
+    date_info_path = os.path.join(cfg.DEFAULT_DATA_DIR, "date_info.json")
+    with open(date_info_path, "w", encoding='utf-8') as file:
+        json.dump(date_info, file)
 
     seg_utils.generate_annotations(drift_info, 
                                    dir=cfg.DEFAULT_DATA_DIR,
@@ -117,6 +108,7 @@ def vdd_pipeline():
     drift_number = 1
 
     log_matching = {}
+    date_info = {}
 
     # iterate through log files
     for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs",
@@ -156,7 +148,7 @@ def vdd_pipeline():
                 cluster_order = \
                 vdd.do_cluster_changePoint(constraints, cp_all=cfg.CP_ALL)
         except ValueError:
-            break
+            continue
             
         timestamps = vdd_helper.get_drift_moments_timestamps(log_name=name, 
                                                              drift_info=drift_info)
@@ -164,7 +156,7 @@ def vdd_pipeline():
         drift_types = vdd_helper.get_drift_types(log_name=name,
                                                  drift_info=drift_info)
         
-        bboxes, fig_bbox = vdd_helper.vdd_draw_drift_map_with_clusters(
+        bboxes, fig_bbox, log_date_info = vdd_helper.vdd_draw_drift_map_with_clusters(
             data=constraints,
             number=drift_number,
             exp_path=cfg.DEFAULT_DATA_DIR,
@@ -175,19 +167,24 @@ def vdd_pipeline():
         bbox_df = vdd_helper.update_bboxes_for_vdd(bbox_df, bboxes, name, fig_bbox)
             
         log_matching[name] = drift_number
+        date_info[name] = log_date_info
         
         # increment log number
         drift_number += 1
         
     drift_info = vdd_helper.merge_bboxes_with_drift_info(bbox_df, drift_info)
     
-    if cfg.DEBUG:
-        drift_info.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "drift_info.csv"))
-        
-        log_matching_df = pd.DataFrame.from_dict(log_matching, 
-                                                 orient="index", 
-                                                 columns=["image_id"])
-        log_matching_df.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "log_matching.csv"))
+    drift_info.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "drift_info.csv"))
+    
+    log_matching_df = pd.DataFrame.from_dict(log_matching, 
+                                                orient="index", 
+                                                columns=["image_id"])
+    log_matching_df.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "log_matching.csv"))
+    
+    date_info_path = os.path.join(cfg.DEFAULT_DATA_DIR, "date_info.json")
+    with open(date_info_path, "w", encoding='utf-8') as file:
+        json.dump(date_info, file)
+    
     
     vdd_helper.generate_vdd_annotations(drift_info, 
                                    dir=cfg.DEFAULT_DATA_DIR,
@@ -208,6 +205,10 @@ def log_to_windowed_dfg_count(event_log, n_windows):
         event_log, variant=log_converter.Variants.TO_DATA_FRAME)
     event_log_df = dataframe_utils.convert_timestamp_columns_in_df(
         event_log_df, timest_format="ISO8601")
+    
+    min_date = np.min(event_log_df["time:timestamp"])
+    max_date = np.max(event_log_df["time:timestamp"])
+    date_info = (min_date, max_date)
 
     # get unique event names
     act_names = np.unique(event_log_df["concept:name"])
@@ -288,7 +289,7 @@ def log_to_windowed_dfg_count(event_log, n_windows):
     )
     
     # , np.array(start_act), np.array(end_act)
-    return np.array(dfg_graphs), borders, window_information
+    return np.array(dfg_graphs), borders, window_information, date_info
 
 
 def similarity_calculation(windowed_dfg):

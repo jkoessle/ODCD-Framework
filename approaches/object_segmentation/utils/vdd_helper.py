@@ -35,6 +35,8 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
 
     min_date = np.min(ts_ticks_date)
     max_date = np.max(ts_ticks_date)
+    
+    date_info = (min_date, max_date)
 
     y_data = np.array(data_c)
 
@@ -133,7 +135,7 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                                                size,
                                                fig_bbox,
                                                drift_types[key])
-    return bboxes, fig_bbox
+    return bboxes, fig_bbox, date_info
 
 
 def vdd_mine_minerful_for_declare_constraints(log_name: str, path, exp_path):
