@@ -34,10 +34,12 @@ def get_evaluation_results(log_dir, eval_dir, model, threshold=0.5):
     data = tf.data.TFRecordDataset(eval_dir)
     input_image_size = cfg.IMAGE_SIZE
     model_fn = model.signatures['serving_default']
-
+    
     if cfg.ENCODING_TYPE == "winsim":
-        window_info = get_window_info(log_dir)
-
+            window_info = get_window_info(log_dir)
+    elif cfg.ENCODING_TYPE == "vdd":
+            timestamps_per_trace = get_first_timestamps_vdd(log_dir)
+            
     log_matching = get_log_matching(log_dir)
     drift_info = get_drift_info(log_dir)
     date_info = get_date_info(log_dir)
@@ -72,21 +74,25 @@ def get_evaluation_results(log_dir, eval_dir, model, threshold=0.5):
         y_pred = y_pred[bbox_pred]
 
         log_info = get_log_info(log_name, drift_info)
-        true_change_points = get_true_changepoints(log_info)
+        true_change_points = get_true_changepoints_trace_idx(log_info)
         y_true_category = get_true_classes(log_info)
         y_pred_category = get_predicted_classes(y_pred, category_index)
 
         if cfg.ENCODING_TYPE == "winsim":
+            # window_info = get_window_info(log_dir)
             bbox_pred = bbox_pred / cfg.TARGETSIZE \
                 * cfg.N_WINDOWS
             log_window_info = window_info[log_name]
-            pred_change_points = get_changepoints_winsim(
+            pred_change_points = get_changepoints_trace_idx_winsim(
                 bbox_pred, y_pred_category, log_window_info)
         elif cfg.ENCODING_TYPE == "vdd":
-            pred_change_points = get_changepoints_vdd(bboxes=bbox_pred,
+            pred_change_points = get_changepoints_trace_idx_vdd(bboxes=bbox_pred,
                                                       y_pred=y_pred_category,
+                                                      timestamps_per_trace=
+                                                      timestamps_per_trace[log_name],
                                                       min_date=min_date.date(),
                                                       max_date=max_date.date())
+            
 
         day_threshold = get_day_threshold(min_date=min_date.date(),
                                           max_date=max_date.date())
@@ -104,6 +110,8 @@ def get_evaluation_results(log_dir, eval_dir, model, threshold=0.5):
 
     if cfg.ENCODING_TYPE == "winsim":
         close_file(window_info)
+    elif cfg.ENCODING_TYPE == "vdd":
+        close_file(timestamps_per_trace)
 
     close_file(date_info)
 
@@ -130,6 +138,12 @@ def get_date_info(log_dir):
     return json.load(date_info_path)
 
 
+def get_first_timestamps_vdd(log_dir):
+    first_timestamps_path = os.path.join(log_dir, "first_timestamps.json")
+    assert os.path.isfile(first_timestamps_path), "No timestamps file found"
+    return json.load(first_timestamps_path)
+
+
 def get_drift_info(log_dir):
     drift_info_path = os.path.join(log_dir, "drift_info.csv")
     assert os.path.isfile(drift_info_path), "No drift info file found"
@@ -140,7 +154,7 @@ def close_file(file):
     file.close()
 
 
-def get_changepoints_winsim(bboxes, y_pred, window_info) -> list:
+def get_changepoints_timestamp_winsim(bboxes, y_pred, window_info) -> list:
     change_points = []
     for i, bbox in enumerate(bboxes):
         if y_pred[i] == "sudden":
@@ -150,13 +164,29 @@ def get_changepoints_winsim(bboxes, y_pred, window_info) -> list:
         else:
             # changepoint is equal to the date of the first trace in window
             change_point = int(bbox[0])
-        change_point_date = dt.datetime.strptime(window_info[change_point][-1],
+        change_point_date = dt.datetime.strptime(window_info[str(change_point)][-1],
                                                  "%y-%m-%d").date()
         change_points.append(change_point_date)
     return change_points
 
 
-def get_changepoints_vdd(bboxes, y_pred, min_date: dt.date, max_date: dt.date) -> list:
+def get_changepoints_trace_idx_winsim(bboxes, y_pred, window_info) -> list:
+    change_points = []
+    for i, bbox in enumerate(bboxes):
+        if y_pred[i] == "sudden":
+            # changepoint is equal to the date of the first trace in the middle
+            # window of bbox
+            change_point = get_sudden_changepoint_winsim(int(bbox[0]))
+        else:
+            # changepoint is equal to the date of the first trace in window
+            change_point = int(bbox[0])
+        change_point_trace_id = int(window_info[str(change_point)][0])
+        change_points.append(change_point_trace_id)
+    return change_points
+
+
+def get_changepoints_timestamp_vdd(bboxes, y_pred, 
+                                   min_date: dt.date, max_date: dt.date) -> list:
     change_points = []
     day_delta = max_date - min_date
     for i, bbox in enumerate(bboxes):
@@ -171,15 +201,42 @@ def get_changepoints_vdd(bboxes, y_pred, min_date: dt.date, max_date: dt.date) -
     return change_points
 
 
+def get_changepoints_trace_idx_vdd(bboxes, y_pred, timestamps_per_trace: pd.DataFrame,
+                                   min_date: dt.date, max_date: dt.date) -> list:
+    change_points = []
+    day_delta = max_date - min_date
+    for i, bbox in enumerate(bboxes):
+        if y_pred[i] == "sudden":
+            xmin = get_sudden_changepoint_vdd(int(bbox[0]))
+        else:
+            xmin = bbox[0]
+        relative_xmin = xmin / cfg.TARGETSIZE
+        change_point_date = min_date + dt.timedelta(days=int(day_delta.days *
+                                                             relative_xmin))
+        change_point_index = get_closest_trace_index(change_point_date, 
+                                                     timestamps_per_trace)
+        change_points.append(change_point_index)
+    return change_points
+
+
 def get_log_info(log_name: str, drift_info: pd.DataFrame) -> pd.DataFrame:
     return drift_info.loc[drift_info["log_name"] == log_name]
 
 
-def get_true_changepoints(log_info: pd.DataFrame) -> list:
+def get_true_changepoints_timestamp(log_info: pd.DataFrame) -> list:
     change_points_datetime = pd.unique(log_info["change_start"])
     change_points_date = [dt.datetime.strptime(datetime, "%y-%m-%d").date()
                           for datetime in change_points_datetime]
     return change_points_date
+
+
+def get_true_changepoints_trace_idx(log_info: pd.DataFrame) -> list:
+    change_points_trace_indices = list(log_info["drift_traces_index"])
+    change_points_trace_idx = []
+    for elem in change_points_trace_indices:
+        elem = utils.special_string_2_list(elem)
+        change_points_trace_idx.append(elem[0])
+    return change_points_trace_idx
 
 
 def get_true_classes(log_info: pd.DataFrame) -> list:
@@ -241,5 +298,17 @@ def get_sudden_changepoint_vdd(xmin: int) -> int:
     return changepoint
 
 
+def get_closest_trace_index(drift_moment_date: dt.date, 
+                            timetamps_per_trace: dict):
+    timestamps_df = pd.DataFrame.from_dict(timetamps_per_trace, 
+                                           orient="index", 
+                                           columns=["timestamp"])
+    timestamps_df = timestamps_df.rename_axis("trace_id").reset_index()
+    timestamps_df["timestamp"] = timestamps_df["timestamp"].apply(lambda _: 
+        dt.datetime.strptime(_,"%m-%d-%Y").date())
+    index = timestamps_df["timestamp"].searchsorted(drift_moment_date)
+    return timestamps_df.iloc[index]["trace_id"] 
+    
+    
 def evaluate():
     pass

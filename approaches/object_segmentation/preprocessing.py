@@ -109,6 +109,7 @@ def vdd_pipeline():
 
     log_matching = {}
     date_info = {}
+    first_timestamps = {} 
 
     # iterate through log files
     for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs",
@@ -134,6 +135,8 @@ def vdd_pipeline():
 
         ts_ticks = vdd_helper.vdd_save_separately_timestamp_for_each_constraint_window(
                 filtered_log)
+        
+        first_timestamps[name] = vdd_helper.get_first_timestamp_per_trace(filtered_log)
 
         constraints = vdd_helper.vdd_import_minerful_constraints_timeseries_data(
             minerful_csv_path)
@@ -185,6 +188,9 @@ def vdd_pipeline():
     with open(date_info_path, "w", encoding='utf-8') as file:
         json.dump(date_info, file)
     
+    first_timestamps_path = os.path.join(cfg.DEFAULT_DATA_DIR, "first_timestamps.json")
+    with open(first_timestamps_path, "w", encoding='utf-8') as file:
+        json.dump(first_timestamps, file)
     
     vdd_helper.generate_vdd_annotations(drift_info, 
                                    dir=cfg.DEFAULT_DATA_DIR,

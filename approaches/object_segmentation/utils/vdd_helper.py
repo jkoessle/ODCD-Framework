@@ -339,6 +339,18 @@ def vdd_save_separately_timestamp_for_each_constraint_window(log):
     return time_out
 
 
+def get_first_timestamp_per_trace(log):
+    timestamps = {}
+    try:
+        for trace in log._list:
+            timestamps[trace] = trace._list[0]._dict['time:timestamp'].strftime(
+            '%m-%d-%Y')
+    except AttributeError:
+        for trace in log._list:
+            timestamps[trace] = trace._list[0]._dict['time:timestamp'][0:8]
+    return timestamps
+
+
 def extract_vdd_drift_information(dir) -> pd.DataFrame:
 
     pd_df = utils.get_drift_info(dir)
