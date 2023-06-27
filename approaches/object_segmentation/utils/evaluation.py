@@ -389,7 +389,3 @@ def get_closest_trace_index(drift_moment_date: dt.date,
         dt.datetime.strptime(_, "%m-%d-%Y").date())
     index = timestamps_df["timestamp"].searchsorted(drift_moment_date)
     return int(timestamps_df.iloc[index]["trace_id"])
-
-
-def evaluate():
-    pass

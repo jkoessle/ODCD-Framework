@@ -422,7 +422,7 @@ def visualize_batch(path, mode, seed, n_examples=3):
         plt.axis('off')
         plt.title(f'Image-{i+1}')
 
-    plt.savefig(os.path.join(cfg.DEFAULT_OUTPUT_DIR, f"{mode}_batch.png"),
+    plt.savefig(os.path.join(cfg.TRAINED_MODEL_PATH, f"{mode}_batch.png"),
                 bbox_inches="tight")
 
 
@@ -483,7 +483,7 @@ def visualize_predictions(path, mode, model, seed, n_examples=3, threshold=0.50)
         plt.imshow(image_np)
         plt.axis('off')
 
-    plt.savefig(os.path.join(cfg.DEFAULT_OUTPUT_DIR, f"{mode}_predictions.png"),
+    plt.savefig(os.path.join(cfg.TRAINED_MODEL_PATH, f"{mode}_predictions.png"),
                 bbox_inches="tight")
 
 
