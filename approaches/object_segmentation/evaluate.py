@@ -40,7 +40,7 @@ if __name__ == "__main__":
     model = tf.saved_model.load(cfg.TRAINED_MODEL_PATH)
     visualize_bboxes(model)
     
-    results = eval.get_evaluation_results(log_dir=cfg.DEFAULT_LOG_DIR,
+    results = eval.get_evaluation_results(data_dir=cfg.EVAL_IMAGE_DATA_DIR,
                                           eval_dir=cfg.EVAL_DATA_DIR,
                                           model=model,
                                           threshold=cfg.EVAL_THRESHOLD)

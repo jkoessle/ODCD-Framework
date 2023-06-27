@@ -75,20 +75,20 @@ def get_average_lag(assignments: List[Tuple[int, int]]):
         return np.nan
 
 
-def get_evaluation_results(log_dir, eval_dir, model, threshold=0.5):
+def get_evaluation_results(data_dir, eval_dir, model, threshold=0.5):
 
     data = tf.data.TFRecordDataset(eval_dir)
     input_image_size = cfg.IMAGE_SIZE
     model_fn = model.signatures['serving_default']
 
     if cfg.ENCODING_TYPE == "winsim":
-        window_info = get_window_info(log_dir)
+        window_info = get_window_info(data_dir)
     elif cfg.ENCODING_TYPE == "vdd":
-        timestamps_per_trace = get_first_timestamps_vdd(log_dir)
+        timestamps_per_trace = get_first_timestamps_vdd(data_dir)
 
-    log_matching = get_log_matching(log_dir)
-    drift_info = get_drift_info(log_dir)
-    date_info = get_date_info(log_dir)
+    log_matching = get_log_matching(data_dir)
+    drift_info = get_drift_info(data_dir)
+    date_info = get_date_info(data_dir)
 
     category_index, tf_ex_decoder = utils.get_ex_decoder()
 
@@ -125,7 +125,7 @@ def get_evaluation_results(log_dir, eval_dir, model, threshold=0.5):
         y_pred_category = get_predicted_classes(y_pred, category_index)
 
         if cfg.ENCODING_TYPE == "winsim":
-            # window_info = get_window_info(log_dir)
+            # window_info = get_window_info(data_dir)
             bbox_pred = bbox_pred / cfg.TARGETSIZE \
                 * cfg.N_WINDOWS
             log_window_info = window_info[log_name]
@@ -161,34 +161,34 @@ def get_evaluation_results(log_dir, eval_dir, model, threshold=0.5):
     return eval_results
 
 
-def get_log_matching(log_dir):
-    log_matching_path = os.path.join(log_dir, "log_matching.csv")
+def get_log_matching(data_dir):
+    log_matching_path = os.path.join(data_dir, "log_matching.csv")
     assert os.path.isfile(log_matching_path), "No log matching file found"
     log_matching = pd.read_csv(log_matching_path)
     log_matching = log_matching.rename_axis("log_name").reset_index()
     return log_matching
 
 
-def get_window_info(log_dir):
-    window_info_path = os.path.join(log_dir, "window_info.json")
+def get_window_info(data_dir):
+    window_info_path = os.path.join(data_dir, "window_info.json")
     assert os.path.isfile(window_info_path), "No window info file found"
     return json.load(window_info_path)
 
 
-def get_date_info(log_dir):
-    date_info_path = os.path.join(log_dir, "date_info.json")
+def get_date_info(data_dir):
+    date_info_path = os.path.join(data_dir, "date_info.json")
     assert os.path.isfile(date_info_path), "No date info file found"
     return json.load(date_info_path)
 
 
-def get_first_timestamps_vdd(log_dir):
-    first_timestamps_path = os.path.join(log_dir, "first_timestamps.json")
+def get_first_timestamps_vdd(data_dir):
+    first_timestamps_path = os.path.join(data_dir, "first_timestamps.json")
     assert os.path.isfile(first_timestamps_path), "No timestamps file found"
     return json.load(first_timestamps_path)
 
 
-def get_drift_info(log_dir):
-    drift_info_path = os.path.join(log_dir, "drift_info.csv")
+def get_drift_info(data_dir):
+    drift_info_path = os.path.join(data_dir, "drift_info.csv")
     assert os.path.isfile(drift_info_path), "No drift info file found"
     return pd.read_csv(drift_info_path)
 

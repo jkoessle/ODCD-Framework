@@ -91,6 +91,8 @@ TFR_RECORDS_DIR = "Specify directory where to save TFR files here"
 DEFAULT_OUTPUT_DIR = "Specify directory where to save output here"
 TRAINED_MODEL_PATH = "Specify path to trained model here"
 
+EVAL_IMAGE_DATA_DIR = "Specify directory where evaluation images are saved here"
+
 
 ##### VDD CONFIG #####
 SUB_L = 100
