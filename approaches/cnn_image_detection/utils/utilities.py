@@ -154,7 +154,7 @@ def create_multilabel_experiment(dir):
 
     timestamp = get_timestamp()
 
-    exp_path = os.path.join(dir, f"experiment_{timestamp}")
+    exp_path = os.path.join(dir, f"winsim_experiment_{timestamp}")
     os.makedirs(exp_path)
 
     print(f"Experiment created at {exp_path}")

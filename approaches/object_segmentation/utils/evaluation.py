@@ -75,9 +75,9 @@ def get_average_lag(assignments: List[Tuple[int, int]]):
         return np.nan
 
 
-def get_evaluation_results(data_dir, eval_dir, model, threshold=0.5):
+def evaluate(data_dir, eval_dir, model, threshold=0.5):
 
-    data = tf.data.TFRecordDataset(eval_dir)
+    # data = tf.data.TFRecordDataset(eval_dir)
     input_image_size = cfg.IMAGE_SIZE
     model_fn = model.signatures['serving_default']
 
@@ -93,11 +93,19 @@ def get_evaluation_results(data_dir, eval_dir, model, threshold=0.5):
     category_index, tf_ex_decoder = utils.get_ex_decoder()
 
     eval_results = {}
+    
+    images = get_image_paths(data_dir)
+    
+    for image_name, image_path in images.items():
 
-    for i, tfr_tensor in enumerate(data):
-        decoded_tensor = tf_ex_decoder.decode(tfr_tensor)
+    # for i, tfr_tensor in enumerate(data):
+        # decoded_tensor = tf_ex_decoder.decode(tfr_tensor)
+        # image = utils.build_inputs_for_object_detection(
+        #     decoded_tensor['image'], input_image_size)
+        path = os.path.join(image_path,image_name)
+        image = utils.load_image(path)
         image = utils.build_inputs_for_object_detection(
-            decoded_tensor['image'], input_image_size)
+            image, input_image_size)
         image = tf.expand_dims(image, axis=0)
         image = tf.cast(image, dtype=tf.uint8)
         # image_np = image[0].numpy()
@@ -106,7 +114,7 @@ def get_evaluation_results(data_dir, eval_dir, model, threshold=0.5):
         # result = np.where(result['detection_scores'][0].numpy() > threshold)
 
         # check if that is correct
-        image_id = result["image_id"]
+        image_id = int(image_name.split(".")[0])
         log_name = log_matching.loc[log_matching["image_id"] == image_id, "log_name"] \
             .iloc[0]
         min_date, max_date = date_info[log_name]
@@ -117,7 +125,7 @@ def get_evaluation_results(data_dir, eval_dir, model, threshold=0.5):
         bbox_pred = bbox_pred[scores > threshold]
 
         y_pred = result['detection_classes'][0].numpy().astype(int)
-        y_pred = y_pred[bbox_pred]
+        y_pred = y_pred[scores > threshold]
 
         log_info = get_log_info(log_name, drift_info)
         true_change_points = get_true_changepoints_trace_idx(log_info)
@@ -135,14 +143,14 @@ def get_evaluation_results(data_dir, eval_dir, model, threshold=0.5):
             pred_change_points = get_changepoints_trace_idx_vdd(bboxes=bbox_pred,
                                                                 y_pred=y_pred_category,
                                                                 timestamps_per_trace=timestamps_per_trace[log_name],
-                                                                min_date=min_date.date(),
-                                                                max_date=max_date.date())
+                                                                min_date=str_2_date(min_date),
+                                                                max_date=str_2_date(max_date))
 
         metrics = get_evaluation_metrics(y_true=true_change_points,
                                          y_pred=pred_change_points)
 
-        eval_results[log_name] = {"Detected Changepoint Dates": pred_change_points,
-                                  "Actual Changepoint Dates": true_change_points,
+        eval_results[log_name] = {"Detected Changepoints": pred_change_points,
+                                  "Actual Changepoints": true_change_points,
                                   "Predicted Drift Types": y_pred_category,
                                   "Actual Drift Types": y_true_category,
                                   "F1-Score": metrics["f1"],
@@ -151,20 +159,30 @@ def get_evaluation_results(data_dir, eval_dir, model, threshold=0.5):
                                   "Average Lag": metrics["lag"]
                                   }
 
-    if cfg.ENCODING_TYPE == "winsim":
-        close_file(window_info)
-    elif cfg.ENCODING_TYPE == "vdd":
-        close_file(timestamps_per_trace)
+    # if cfg.ENCODING_TYPE == "winsim":
+    #     close_file(window_info)
+    # elif cfg.ENCODING_TYPE == "vdd":
+    #     close_file(timestamps_per_trace)
 
-    close_file(date_info)
+    # close_file(date_info)
+    
+    save_results(eval_results)
 
-    return eval_results
+
+def get_image_paths(dir):
+    list_of_files = {}
+    for dir_path, _, filenames in os.walk(dir):
+        for filename in filenames:
+            if filename.endswith('.jpg'):
+                list_of_files[filename] = dir_path
+    
+    return list_of_files
 
 
 def get_log_matching(data_dir):
     log_matching_path = os.path.join(data_dir, "log_matching.csv")
     assert os.path.isfile(log_matching_path), "No log matching file found"
-    log_matching = pd.read_csv(log_matching_path)
+    log_matching = pd.read_csv(log_matching_path, index_col=0)
     log_matching = log_matching.rename_axis("log_name").reset_index()
     return log_matching
 
@@ -172,19 +190,26 @@ def get_log_matching(data_dir):
 def get_window_info(data_dir):
     window_info_path = os.path.join(data_dir, "window_info.json")
     assert os.path.isfile(window_info_path), "No window info file found"
-    return json.load(window_info_path)
+    file = open_file(window_info_path)
+    return json.load(file)
 
 
 def get_date_info(data_dir):
     date_info_path = os.path.join(data_dir, "date_info.json")
     assert os.path.isfile(date_info_path), "No date info file found"
-    return json.load(date_info_path)
+    file = open_file(date_info_path)
+    return json.load(file)
 
 
 def get_first_timestamps_vdd(data_dir):
     first_timestamps_path = os.path.join(data_dir, "first_timestamps.json")
     assert os.path.isfile(first_timestamps_path), "No timestamps file found"
-    return json.load(first_timestamps_path)
+    file = open_file(first_timestamps_path)
+    return json.load(file)
+
+
+def open_file(path):
+    return open(path)
 
 
 def get_drift_info(data_dir):
@@ -248,7 +273,7 @@ def get_changepoints_timestamp_vdd(bboxes, y_pred,
     return change_points
 
 
-def get_changepoints_trace_idx_vdd(bboxes, y_pred, timestamps_per_trace: pd.DataFrame,
+def get_changepoints_trace_idx_vdd(bboxes, y_pred, timestamps_per_trace: dict,
                                    min_date: dt.date, max_date: dt.date) -> List[tuple]:
     change_points = []
     day_delta = max_date - min_date
@@ -300,11 +325,11 @@ def get_true_changepoints_trace_idx(log_info: pd.DataFrame) -> list:
             first_row = utils.special_string_2_list(first_row)
             last_row = drift.iloc[-1]["drift_traces_index"]
             last_row = utils.special_string_2_list(last_row)
-            change_points_trace_idx.append([first_row[0], last_row[-1]])
+            change_points_trace_idx.append((first_row[0], last_row[-1]))
         else:
             trace_id = drift.iloc[0]["drift_traces_index"]
             trace_id = utils.special_string_2_list(trace_id)
-            change_points_trace_idx.append([trace_id[0]])
+            change_points_trace_idx.append((trace_id[0], trace_id[0]))
     return change_points_trace_idx
 
 
@@ -389,3 +414,13 @@ def get_closest_trace_index(drift_moment_date: dt.date,
         dt.datetime.strptime(_, "%m-%d-%Y").date())
     index = timestamps_df["timestamp"].searchsorted(drift_moment_date)
     return int(timestamps_df.iloc[index]["trace_id"])
+
+
+def save_results(results: dict):
+    results_df = pd.DataFrame.from_dict(results, orient="index")
+    save_path = os.path.join(cfg.TRAINED_MODEL_PATH, "evaluation_results.csv")
+    results_df.to_csv(save_path, sep=",")
+    
+    
+def str_2_date(date: str):
+    return dt.datetime.strptime(date, "%m-%d-%Y").date()

@@ -1,6 +1,6 @@
 import os
 import json
-import datetime
+import datetime as dt
 import pytz
 import subprocess
 import pandas as pd
@@ -501,7 +501,7 @@ def build_inputs_for_object_detection(image, input_image_size):
 
 def get_timestamp():
     europe = pytz.timezone("Europe/Berlin")
-    timestamp = datetime.datetime.now(europe).strftime("%Y%m%d-%H%M%S")
+    timestamp = dt.datetime.now(europe).strftime("%Y%m%d-%H%M%S")
     return timestamp
 
 
@@ -636,3 +636,12 @@ def start_tfr_script(repo_dir: str, data_dir: str, tfr_dir: str, prefix: str):
     except subprocess.TimeoutExpired:
         p.kill()
         outs, errs = p.communicate()
+        
+        
+def load_image(path: str) -> np.ndarray:
+    image = Image.open(path)
+    return np.array(image)
+
+
+def datetime_2_str(date: dt.datetime) -> str:
+    return dt.datetime.strftime(date, '%m-%d-%Y')

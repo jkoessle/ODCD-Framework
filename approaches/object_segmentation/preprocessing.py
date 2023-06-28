@@ -214,8 +214,9 @@ def log_to_windowed_dfg_count(event_log, n_windows):
     
     min_date = np.min(event_log_df["time:timestamp"])
     max_date = np.max(event_log_df["time:timestamp"])
-    date_info = (min_date, max_date)
-
+    date_info = (seg_utils.datetime_2_str(min_date), 
+                 seg_utils.datetime_2_str(max_date))
+    
     # get unique event names
     act_names = np.unique(event_log_df["concept:name"])
     # idx_names = np.arange(len(act_names))

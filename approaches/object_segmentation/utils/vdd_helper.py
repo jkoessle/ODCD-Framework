@@ -36,7 +36,10 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
     min_date = np.min(ts_ticks_date)
     max_date = np.max(ts_ticks_date)
     
-    date_info = (min_date, max_date)
+    date_info_min = datetime.strftime(min_date, '%m-%d-%Y')
+    date_info_max = datetime.strftime(max_date, '%m-%d-%Y')
+    
+    date_info = (date_info_min, date_info_max)
 
     y_data = np.array(data_c)
 
@@ -343,11 +346,13 @@ def get_first_timestamp_per_trace(log):
     timestamps = {}
     try:
         for trace in log._list:
-            timestamps[trace] = trace._list[0]._dict['time:timestamp'].strftime(
+            trace_id = int(trace._attributes["concept:name"])
+            timestamps[trace_id] = trace._list[0]._dict['time:timestamp'].strftime(
             '%m-%d-%Y')
     except AttributeError:
         for trace in log._list:
-            timestamps[trace] = trace._list[0]._dict['time:timestamp'][0:8]
+            trace_id = int(trace._attributes["concept:name"])
+            timestamps[trace_id] = trace._list[0]._dict['time:timestamp'][0:8]
     return timestamps
 
 
