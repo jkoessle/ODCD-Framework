@@ -138,6 +138,9 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                                                size,
                                                fig_bbox,
                                                drift_types[key])
+            
+    plt.close()
+    
     return bboxes, fig_bbox, date_info
 
 
