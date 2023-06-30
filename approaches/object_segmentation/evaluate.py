@@ -34,6 +34,5 @@ if __name__ == "__main__":
     visualize_bboxes(model)
 
     eval.evaluate(data_dir=cfg.TEST_IMAGE_DATA_DIR,
-                  eval_dir=cfg.EVAL_DATA_DIR,
                   model=model,
                   threshold=cfg.EVAL_THRESHOLD)

@@ -108,20 +108,26 @@ def assign_changepoints(detected_changepoints: List[Tuple[int, int]],
         }
 
         ####### Constraints #########
-        unique_count = 1
         # Only assign at most one changepoint to each actual changepoint
+        unique_count = 1
         for ap in actual_changepoints:
             prob += (
                 lpSum(x[dp, ap] for dp in detected_changepoints) <= 1,
-                f"Only_One_Changepoint_Per_Actual_Changepoint : {ap}"
+                f"Only_One_Changepoint_Per_Actual_Changepoint : {ap}_\
+                    {unique_count}"
             )
+            unique_count += 1
         # Each detected changepoint is assigned to at most one actual changepoint
+        unique_count = 1
         for dp in detected_changepoints:
             prob += (
                 lpSum(x[dp, ap] for ap in actual_changepoints) <= 1,
-                f"Only_One_Actual_Changepoint_Per_Detected_Changepoint : {dp}"
+                f"Only_One_Actual_Changepoint_Per_Detected_Changepoint : {dp}_\
+                    {unique_count}"
             )
+            unique_count += 1
         # Distance between chosen tuples must be within lag window
+        unique_count = 1
         for dp in detected_changepoints:
             for ap in actual_changepoints:
                 # contraint for start point

@@ -75,7 +75,7 @@ def get_average_lag(assignments: List[Tuple[int, int]]):
         return np.nan
 
 
-def evaluate(data_dir, eval_dir, model, threshold=0.5):
+def evaluate(data_dir, model, threshold=0.5):
 
     # data = tf.data.TFRecordDataset(eval_dir)
     input_image_size = cfg.IMAGE_SIZE
@@ -93,16 +93,16 @@ def evaluate(data_dir, eval_dir, model, threshold=0.5):
     category_index, tf_ex_decoder = utils.get_ex_decoder()
 
     eval_results = {}
-    
+
     images = get_image_paths(data_dir)
-    
+
     for image_name, image_path in images.items():
 
-    # for i, tfr_tensor in enumerate(data):
+        # for i, tfr_tensor in enumerate(data):
         # decoded_tensor = tf_ex_decoder.decode(tfr_tensor)
         # image = utils.build_inputs_for_object_detection(
         #     decoded_tensor['image'], input_image_size)
-        path = os.path.join(image_path,image_name)
+        path = os.path.join(image_path, image_name)
         image = utils.load_image(path)
         image = utils.build_inputs_for_object_detection(
             image, input_image_size)
@@ -143,7 +143,8 @@ def evaluate(data_dir, eval_dir, model, threshold=0.5):
             pred_change_points = get_changepoints_trace_idx_vdd(bboxes=bbox_pred,
                                                                 y_pred=y_pred_category,
                                                                 timestamps_per_trace=timestamps_per_trace[log_name],
-                                                                min_date=str_2_date(min_date),
+                                                                min_date=str_2_date(
+                                                                    min_date),
                                                                 max_date=str_2_date(max_date))
 
         metrics = get_evaluation_metrics(y_true=true_change_points,
@@ -165,7 +166,7 @@ def evaluate(data_dir, eval_dir, model, threshold=0.5):
     #     close_file(timestamps_per_trace)
 
     # close_file(date_info)
-    
+
     save_results(eval_results)
 
 
@@ -175,7 +176,7 @@ def get_image_paths(dir):
         for filename in filenames:
             if filename.endswith('.jpg'):
                 list_of_files[filename] = dir_path
-    
+
     return list_of_files
 
 
@@ -410,9 +411,13 @@ def get_closest_trace_index(drift_moment_date: dt.date,
                                            orient="index",
                                            columns=["timestamp"])
     timestamps_df = timestamps_df.rename_axis("trace_id").reset_index()
-    timestamps_df["timestamp"] = timestamps_df["timestamp"].apply(lambda _: \
+    timestamps_df["timestamp"] = timestamps_df["timestamp"].apply(lambda _:
         dt.datetime.strptime(_, "%m-%d-%Y").date())
-    index = timestamps_df["timestamp"].searchsorted(drift_moment_date)
+
+    index = timestamps_df.loc[timestamps_df["timestamp"] ==
+                              nearest(timestamps_df["timestamp"].to_list(), 
+                                      drift_moment_date)].index[0]
+
     return int(timestamps_df.iloc[index]["trace_id"])
 
 
@@ -420,7 +425,21 @@ def save_results(results: dict):
     results_df = pd.DataFrame.from_dict(results, orient="index")
     save_path = os.path.join(cfg.TRAINED_MODEL_PATH, "evaluation_results.csv")
     results_df.to_csv(save_path, sep=",")
-    
-    
+
+
 def str_2_date(date: str):
     return dt.datetime.strptime(date, "%m-%d-%Y").date()
+
+
+def nearest(items: list, pivot):
+    """Return nearest item from list
+    Source:
+    https://stackoverflow.com/questions/32237862/find-the-closest-date-to-a-given-date
+    Args:
+        items (list): List of search items
+        pivot (any): Search item
+
+    Returns:
+        any: Element that is closest to pivot
+    """
+    return min([i for i in items if i <= pivot], key=lambda x: abs(x - pivot))

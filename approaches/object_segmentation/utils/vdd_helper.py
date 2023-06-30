@@ -514,7 +514,7 @@ def create_experiment(dir):
 
     timestamp = get_timestamp()
 
-    exp_path = os.path.join(dir, f"vdd_experiment_{timestamp}")
+    exp_path = os.path.join(dir, "vdd", f"experiment_{timestamp}")
     os.makedirs(exp_path)
 
     print(f"Experiment created at {exp_path}")
