@@ -195,7 +195,7 @@ def vdd_pipeline():
     vdd_helper.generate_vdd_annotations(drift_info, 
                                    dir=cfg.DEFAULT_DATA_DIR,
                                    log_matching=log_matching,
-                                   log_names=log_files.keys())
+                                   log_names=log_matching.keys())
 
     if cfg.AUTOMATE_TFR_SCRIPT:
         seg_utils.start_tfr_script(repo_dir=cfg.TENSORFLOW_MODELS_DIR,

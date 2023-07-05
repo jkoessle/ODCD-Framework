@@ -49,7 +49,7 @@ def read_event_log(path, name):
 
 def filter_complete_events(log: EventLog):
     try:
-        filtered_log = attributes_filter.apply_events(log, ["COMPLETE"], parameters={
+        filtered_log = attributes_filter.apply_events(log, ["complete"], parameters={
             attributes_filter.Parameters.ATTRIBUTE_KEY: "lifecycle:transition",
             attributes_filter.Parameters.POSITIVE: True})
     except Exception:
