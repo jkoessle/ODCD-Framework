@@ -150,6 +150,8 @@ def vdd_pipeline():
                 clusters_dict, \
                 cluster_order = \
                 vdd.do_cluster_changePoint(constraints, cp_all=cfg.CP_ALL)
+        # In some edge cases the change points can not be determined
+        # The error occurs only extremely rarely and is therefore skipped
         except ValueError:
             continue
             
