@@ -98,3 +98,7 @@ TEST_IMAGE_DATA_DIR = "Specify directory where evaluation images are saved here"
 SUB_L = 100
 SLI_BY = 50
 CP_ALL = True
+
+
+##### EVALUATION CONFIG #####
+RELATIVE_LAG = 0.01

@@ -12,11 +12,14 @@ from . import utilities as utils
 from . import cdrift_evaluation as cdrift
 
 
-def get_evaluation_metrics(y_true: list, y_pred: list) -> dict:
+def get_evaluation_metrics(y_true: list, y_pred: list, 
+                           factor: float, number_of_traces: int) -> dict:
+    
+    lag = int(factor * number_of_traces)
 
     tp_fp, assignments = cdrift.getTP_FP(detected=y_pred,
                                          known=y_true,
-                                         lag=200)
+                                         lag=lag)
     tp, fp = tp_fp
 
     f1, precision, recall = get_f1_score(tp, fp, len(y_true))
@@ -89,6 +92,7 @@ def evaluate(data_dir, model, threshold=0.5):
     log_matching = get_log_matching(data_dir)
     drift_info = get_drift_info(data_dir)
     date_info = get_date_info(data_dir)
+    traces_per_log = get_traces_per_log(data_dir)
 
     category_index, tf_ex_decoder = utils.get_ex_decoder()
 
@@ -148,7 +152,9 @@ def evaluate(data_dir, model, threshold=0.5):
                                                                 max_date=str_2_date(max_date))
 
         metrics = get_evaluation_metrics(y_true=true_change_points,
-                                         y_pred=pred_change_points)
+                                         y_pred=pred_change_points,
+                                         factor=cfg.RELATIVE_LAG,
+                                         number_of_traces=traces_per_log[log_name])
 
         eval_results[log_name] = {"Detected Changepoints": pred_change_points,
                                   "Actual Changepoints": true_change_points,
@@ -206,6 +212,13 @@ def get_first_timestamps_vdd(data_dir):
     first_timestamps_path = os.path.join(data_dir, "first_timestamps.json")
     assert os.path.isfile(first_timestamps_path), "No timestamps file found"
     file = open_file(first_timestamps_path)
+    return json.load(file)
+
+
+def get_traces_per_log(data_dir):
+    number_of_traces_path = os.path.join(data_dir, "number_of_traces.json")
+    assert os.path.isfile(number_of_traces_path), "No number of traces file found"
+    file = open_file(number_of_traces_path)
     return json.load(file)
 
 

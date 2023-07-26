@@ -33,6 +33,7 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
     log_matching = {}
     window_info = {}
     date_info = {}
+    number_of_traces = {}
 
     # iterate through log files
     for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs",
@@ -56,6 +57,7 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
 
         log_matching[name] = drift_number
         date_info[name] = log_date_info
+        number_of_traces[name] = seg_utils.get_number_of_traces(filtered_log)
 
         # save matrix as image
         seg_utils.matrix_to_img(matrix=sim_matrix, 
@@ -80,6 +82,10 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
     date_info_path = os.path.join(cfg.DEFAULT_DATA_DIR, "date_info.json")
     with open(date_info_path, "w", encoding='utf-8') as file:
         json.dump(date_info, file)
+        
+    number_of_traces_path = os.path.join(cfg.DEFAULT_DATA_DIR, "number_of_traces.json")
+    with open(number_of_traces_path, "w", encoding='utf-8') as file:
+        json.dump(number_of_traces, file)
 
     seg_utils.generate_annotations(drift_info, 
                                    dir=cfg.DEFAULT_DATA_DIR,
@@ -109,7 +115,8 @@ def vdd_pipeline():
 
     log_matching = {}
     date_info = {}
-    first_timestamps = {} 
+    first_timestamps = {}
+    number_of_traces = {}
 
     # iterate through log files
     for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs",
@@ -137,6 +144,8 @@ def vdd_pipeline():
                 filtered_log)
         
         first_timestamps[name] = vdd_helper.get_first_timestamp_per_trace(filtered_log)
+        
+        number_of_traces[name] = seg_utils.get_number_of_traces(filtered_log)
 
         constraints = vdd_helper.vdd_import_minerful_constraints_timeseries_data(
             minerful_csv_path)
@@ -193,6 +202,10 @@ def vdd_pipeline():
     first_timestamps_path = os.path.join(cfg.DEFAULT_DATA_DIR, "first_timestamps.json")
     with open(first_timestamps_path, "w", encoding='utf-8') as file:
         json.dump(first_timestamps, file)
+        
+    number_of_traces_path = os.path.join(cfg.DEFAULT_DATA_DIR, "number_of_traces.json")
+    with open(number_of_traces_path, "w", encoding='utf-8') as file:
+        json.dump(number_of_traces, file)
     
     vdd_helper.generate_vdd_annotations(drift_info, 
                                    dir=cfg.DEFAULT_DATA_DIR,

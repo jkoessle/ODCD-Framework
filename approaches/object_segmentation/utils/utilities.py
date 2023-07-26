@@ -7,6 +7,7 @@ import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
+import pm4py as pm
 from . import config as cfg
 
 from PIL import Image
@@ -645,3 +646,19 @@ def load_image(path: str) -> np.ndarray:
 
 def datetime_2_str(date: dt.datetime) -> str:
     return dt.datetime.strftime(date, '%m-%d-%Y')
+
+
+def get_all_numbers_of_traces_per_log():
+    files = get_event_log_paths()
+    number_per_log = {}
+    for name, path in files.items():
+        log = pm.read_xes(os.path.join(path,name), return_legacy_log_object=True)
+        number_per_log[name] = len(log)
+    number_of_traces_path = os.path.join(cfg.DEFAULT_DATA_DIR, "number_of_traces.json")
+    with open(number_of_traces_path, "w", encoding='utf-8') as file:
+        json.dump(number_per_log, file)
+        
+
+def get_number_of_traces(event_log):
+    return len(event_log)
+        
