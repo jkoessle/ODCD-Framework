@@ -269,6 +269,7 @@ def log_to_windowed_dfg_count(event_log, n_windows):
         # at last window fill until the end of the list
         else:
             w_unique_traces = unique_traces[left_boundary:]
+            right_boundary = int(unique_traces[-1])
 
         # search all events for given traces
         log_window = event_log_df[event_log_df["case:concept:name"]

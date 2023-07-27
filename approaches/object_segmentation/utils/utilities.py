@@ -30,14 +30,15 @@ def get_event_log_paths():
 
 
 def get_drift_coordinates(change_idx):
+    
+    assert len(change_idx) > 0, "Error in border mapping"
 
     if len(change_idx) > 1:
         xmin = ymin = change_idx[0]
         xmax = ymax = change_idx[1]
-    else:
+    elif len(change_idx) == 1:
         xmin = ymin = xmax = ymax = change_idx[0]
 
-    # return np.array((xmin, ymin, xmax, ymax))
     return [xmin, ymin, xmax, ymax]
 
 
@@ -62,7 +63,7 @@ def df_trace_index_2_window_id(borders, trace_ids):
         drift_start = trace_ids[0]
         drift_end = trace_ids[1]
 
-        for i, elem in enumerate(borders):
+        for i, elem in enumerate(borders, 1):
             left, right = elem
             if is_in_window(left, drift_start, right):
                 result_set.insert(0, i)
@@ -72,11 +73,15 @@ def df_trace_index_2_window_id(borders, trace_ids):
                 break
     else:
         drift_start = trace_ids[0]
-        for i, elem in enumerate(borders):
+        for i, elem in enumerate(borders, 1):
             left, right = elem
             if is_in_window(left, drift_start, right):
                 result_set.append(i)
                 break
+    
+    # trace not found in borders
+    if not result_set:
+        result_set.append(-100)
 
     return result_set
 
