@@ -49,7 +49,7 @@ def read_event_log(path, name):
 
 def filter_complete_events(log: EventLog):
     try:
-        filtered_log = attributes_filter.apply_events(log, ["COMPLETE"], parameters={
+        filtered_log = attributes_filter.apply_events(log, ["complete"], parameters={
             attributes_filter.Parameters.ATTRIBUTE_KEY: "lifecycle:transition",
             attributes_filter.Parameters.POSITIVE: True})
     except Exception:
@@ -72,12 +72,12 @@ def get_nested_log_information(log: EventLog) -> tuple[dict, dict]:
     #TODO: workaround - CDLG currently only supports noise info for logs without drift
     try:
         drift_info = log.attributes["drift:info"]["children"]
-        noise_info = log.attributes["noise:info"]["children"]
+        # noise_info = log.attributes["noise:info"]["children"]
     except Exception:
         drift_info = {"drift_type": "no-drift"}
-        noise_info = log.attributes["noise:info"]["children"]
+        # noise_info = log.attributes["noise:info"]["children"]
 
-    return noise_info, drift_info
+    return drift_info
 
 
 @deprecated(version='0.1', reason="This function was for a previous version of CDLG")
@@ -154,7 +154,7 @@ def create_multilabel_experiment(dir):
 
     timestamp = get_timestamp()
 
-    exp_path = os.path.join(dir, f"experiment_{timestamp}")
+    exp_path = os.path.join(dir, "winsim", f"experiment_{timestamp}")
     os.makedirs(exp_path)
 
     print(f"Experiment created at {exp_path}")

@@ -32,8 +32,6 @@ if __name__ == "__main__":
 
     if cfg.PREPROCESS:
         pp.preprocessing_pipeline(cfg.N_WINDOWS, p_mode="train")
-    else:
-        cfg.DEFAULT_DATA_DIR = cfg.INTERIM_DATA_DIR
 
     if cfg.MULTILABEL:
         train_ds = create_multilabel_dataset(cfg.TRAIN_DATA_DIR)

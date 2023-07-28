@@ -8,29 +8,31 @@ import tensorflow as tf
 
 import utils.config as cfg
 import utils.utilities as utils
+import utils.evaluation as eval
 
 
-def evaluate(model):
+def visualize_bboxes(model):
     seed = random.randint(0, 10000)
-    
-    utils.visualize_batch(path=cfg.EVAL_DATA_DIR, 
-                          mode="validation", 
+
+    utils.visualize_batch(path=cfg.EVAL_DATA_DIR,
+                          mode="validation",
                           seed=seed)
     utils.visualize_predictions(path=cfg.EVAL_DATA_DIR,
                                 mode="validation",
                                 model=model,
-                                seed=seed)
-    
+                                seed=seed,
+                                threshold=cfg.EVAL_THRESHOLD)
+
 
 if __name__ == "__main__":
     # tf.get_logger().setLevel('ERROR')
-    
+
     # from absl import logging
 
     # tf.autograph.set_verbosity(0)
     model = tf.saved_model.load(cfg.TRAINED_MODEL_PATH)
-    threshold = 0.5
-    
-    # utils.get_drift_moments(None, eval_dir=cfg.EVAL_DATA_DIR, model=model)
-    
-    evaluate(model)
+    visualize_bboxes(model)
+
+    eval.evaluate(data_dir=cfg.TEST_IMAGE_DATA_DIR,
+                  model=model,
+                  threshold=cfg.EVAL_THRESHOLD)

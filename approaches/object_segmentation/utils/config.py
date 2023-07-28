@@ -18,7 +18,7 @@ else:
 ##### DATA CONFIG #####
 N_WINDOWS = 200
 DEFAULT_DATA_DIR = "data"
-DEFAULT_LOG_DIR = "logs"
+DEFAULT_LOG_DIR = ""
 TENSORFLOW_MODELS_DIR = "models"
 MINERFUL_SCRIPTS_DIR = "MINERful"
 OUTPUT_PREFIX = ""
@@ -42,6 +42,7 @@ VAL_STEPS = EVAL_EXAMPLES // EVAL_BATCH_SIZE
 SUMMARY_INTERVAL = STEPS_PER_LOOP
 CP_INTERVAL = STEPS_PER_LOOP
 VAL_INTERVAL = STEPS_PER_LOOP
+EVAL_THRESHOLD = 0.75
 
 # must be equally sized!
 IMAGE_SIZE = (256, 256)
@@ -90,8 +91,14 @@ TFR_RECORDS_DIR = "Specify directory where to save TFR files here"
 DEFAULT_OUTPUT_DIR = "Specify directory where to save output here"
 TRAINED_MODEL_PATH = "Specify path to trained model here"
 
+TEST_IMAGE_DATA_DIR = "Specify directory where evaluation images are saved here"
+
 
 ##### VDD CONFIG #####
 SUB_L = 100
 SLI_BY = 50
 CP_ALL = True
+
+
+##### EVALUATION CONFIG #####
+RELATIVE_LAG = 0.01

@@ -35,69 +35,39 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
 
     min_date = np.min(ts_ticks_date)
     max_date = np.max(ts_ticks_date)
+    
+    date_info_min = datetime.strftime(min_date, '%m-%d-%Y')
+    date_info_max = datetime.strftime(max_date, '%m-%d-%Y')
+    
+    date_info = (date_info_min, date_info_max)
 
     y_data = np.array(data_c)
-
-    plt.figure(figsize=(10, 10))
-    # plt.rcParams['figure.figsize'] = [8, 8]
-    ax = plt.gca()
-    # ax.set_axis_off()
-
-    ax.imshow(y_data, cmap=cmap, interpolation='nearest',
-              extent=[min_date, max_date, y_data.shape[0], 0], aspect='auto'
-              )
-
-    # asp = np.abs(np.diff(ax.get_xlim())[0] / np.diff(ax.get_ylim())[0])
-    # ax.set_aspect(asp)
-
     
     if cfg.KEEP_AXIS:
+        fig = plt.figure(figsize=(10, 10))
+        ax = plt.gca()
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d-%Y'))
-        # ax.xaxis.set_major_locator(mdates.DayLocator(interval=180))
         ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
-        # plt.gca().set_aspect('equal')
-        # ax.set_xticks(ts_ticks_date)
-        # plt.gcf().autofmt_xdate()
+
         plt.xticks(rotation=90)
+        ax.imshow(y_data, cmap=cmap, interpolation='nearest',
+              extent=[min_date, max_date, y_data.shape[0], 0], aspect='auto'
+              )
+        plt.savefig(os.path.join(exp_path, f"{number}.jpg"))
     else:
+        fig = plt.figure(figsize=(1, 1))
+        ax = plt.Axes(fig, [0., 0., 1., 1.])
         ax.set_axis_off()
-    # ax.set_xlim(min_date,max_date)
-    # ax.set_xbound(min_date,max_date)
-    # test = ax.get_position()
-
-    # Get the x and y data and transform it into pixel coordinates
-    # x, y = points.get_data()
-
-    plt.savefig(os.path.join(exp_path, f"{number}.jpg"),
-                # bbox_inches='tight',
-                # pad_inches=0
+        fig.add_axes(ax)
+        ax.imshow(y_data, cmap=cmap, interpolation='nearest',
+                extent=[min_date, max_date, y_data.shape[0], 0], aspect='auto'
                 )
-
-    # x = np.array([0.0, 1.0])
-    # y = np.array([0.0, 1.0])
-    # xy_pixels = ax.transAxes.transform(np.vstack([x,y]).T)
+        fig.savefig(os.path.join(exp_path, f"{number}.jpg"),
+                    dpi=y_data.shape[0])
 
     x_max, y_max = ax.transAxes.transform((1.0, 1.0))
     x_min, y_min = ax.transAxes.transform((0.0, 0.0))
     fig_bbox = (x_min, y_min, x_max, y_max)
-
-    # xpix, ypix = xy_pixels.T
-
-    size = plt.gcf().canvas.get_width_height()
-    # ypix = height - ypix
-
-    # test1 = ax.get_position()
-    # y_lim = ax.get_ylim()
-    # x_lim = ax.get_xlim()
-    # test4 = plt.gca().get_ylim
-    # transform_data = ax.transData.transform((test2))
-    # transform_axes = ax.transAxes.transform((test2))
-    
-    # transform_zero = ax.transData.transform((x_lim[0],y_lim[0]))
-    
-    # test = mdates.num2date(transform[0])
-
-    # im = Image.open(os.path.join(exp_path, f"{number}.jpg"))
 
     bboxes = {}
 
@@ -117,7 +87,6 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                                                start,
                                                min_date,
                                                max_date,
-                                               size,
                                                fig_bbox,
                                                drift_types[key])
         else:
@@ -130,10 +99,12 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                                                end,
                                                min_date,
                                                max_date,
-                                               size,
                                                fig_bbox,
                                                drift_types[key])
-    return bboxes, fig_bbox
+            
+    plt.close()
+    
+    return bboxes, fig_bbox, date_info
 
 
 def vdd_mine_minerful_for_declare_constraints(log_name: str, path, exp_path):
@@ -337,6 +308,20 @@ def vdd_save_separately_timestamp_for_each_constraint_window(log):
     return time_out
 
 
+def get_first_timestamp_per_trace(log):
+    timestamps = {}
+    try:
+        for trace in log._list:
+            trace_id = int(trace._attributes["concept:name"])
+            timestamps[trace_id] = trace._list[0]._dict['time:timestamp'].strftime(
+            '%m-%d-%Y')
+    except AttributeError:
+        for trace in log._list:
+            trace_id = int(trace._attributes["concept:name"])
+            timestamps[trace_id] = trace._list[0]._dict['time:timestamp'][0:8]
+    return timestamps
+
+
 def extract_vdd_drift_information(dir) -> pd.DataFrame:
 
     pd_df = utils.get_drift_info(dir)
@@ -415,16 +400,13 @@ def get_drift_types(log_name: str, drift_info: pd.DataFrame) -> dict:
 
 def get_bbox_coordinates(start: datetime, end: datetime,
                          min: datetime, max: datetime,
-                         size: tuple, fig_bbox: tuple,
-                         drift_type: str) -> str:
+                         fig_bbox: tuple, drift_type: str) -> str:
     relative_start = (mdates.date2num(start) - mdates.date2num(min)) / \
         (mdates.date2num(max) - mdates.date2num(min))
     relative_end = (mdates.date2num(end) - mdates.date2num(min)) / \
         (mdates.date2num(max) - mdates.date2num(min))
 
     f_xmin, f_ymin, f_xmax, f_ymax = fig_bbox
-
-    # width, height = size
     
     width, height = (f_xmax - f_xmin), (f_ymax - f_ymin)
     size = (width, height)
@@ -441,7 +423,7 @@ def get_bbox_coordinates(start: datetime, end: datetime,
         ymin = f_ymin + 10
         ymax = f_ymax + 10
     else:
-        ymin = f_xmin
+        ymin = f_ymin
         ymax = f_ymax
 
     # ymin = 0, ymax = 1
@@ -492,7 +474,7 @@ def create_experiment(dir):
 
     timestamp = get_timestamp()
 
-    exp_path = os.path.join(dir, f"vdd_experiment_{timestamp}")
+    exp_path = os.path.join(dir, "vdd", f"experiment_{timestamp}")
     os.makedirs(exp_path)
 
     print(f"Experiment created at {exp_path}")
@@ -662,8 +644,5 @@ def get_minerful_constraints_path(log_name: str, constraints_dir: str):
     if os.path.isfile(constraints_path):
         return constraints_path
     else:
-        raise FileNotFoundError(f"The provided event log {log_name} does not have a \
-                                corresponding MINERful constraint yet. \
-                                Please mine constraints with MINERful first.")
-    
+        return None   
     

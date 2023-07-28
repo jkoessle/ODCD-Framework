@@ -76,7 +76,7 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
         
         # TODO outsource to function - save info as csv/dataframe
         if p_mode == "train":
-            noise_info, drift_info = utils.get_nested_log_information(
+            drift_info = utils.get_nested_log_information(
                 event_log)
             # log_number = drift_info["log_id"]
             

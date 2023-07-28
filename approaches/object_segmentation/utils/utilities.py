@@ -1,12 +1,13 @@
 import os
 import json
-import datetime
+import datetime as dt
 import pytz
 import subprocess
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
+import pm4py as pm
 from . import config as cfg
 
 from PIL import Image
@@ -29,14 +30,15 @@ def get_event_log_paths():
 
 
 def get_drift_coordinates(change_idx):
+    
+    assert len(change_idx) > 0, "Error in border mapping"
 
     if len(change_idx) > 1:
         xmin = ymin = change_idx[0]
         xmax = ymax = change_idx[1]
-    else:
+    elif len(change_idx) == 1:
         xmin = ymin = xmax = ymax = change_idx[0]
 
-    # return np.array((xmin, ymin, xmax, ymax))
     return [xmin, ymin, xmax, ymax]
 
 
@@ -61,7 +63,7 @@ def df_trace_index_2_window_id(borders, trace_ids):
         drift_start = trace_ids[0]
         drift_end = trace_ids[1]
 
-        for i, elem in enumerate(borders):
+        for i, elem in enumerate(borders, 1):
             left, right = elem
             if is_in_window(left, drift_start, right):
                 result_set.insert(0, i)
@@ -71,11 +73,15 @@ def df_trace_index_2_window_id(borders, trace_ids):
                 break
     else:
         drift_start = trace_ids[0]
-        for i, elem in enumerate(borders):
+        for i, elem in enumerate(borders, 1):
             left, right = elem
             if is_in_window(left, drift_start, right):
                 result_set.append(i)
                 break
+    
+    # trace not found in borders
+    if not result_set:
+        result_set.append(-100)
 
     return result_set
 
@@ -422,7 +428,7 @@ def visualize_batch(path, mode, seed, n_examples=3):
         plt.axis('off')
         plt.title(f'Image-{i+1}')
 
-    plt.savefig(os.path.join(cfg.DEFAULT_OUTPUT_DIR, f"{mode}_batch.png"),
+    plt.savefig(os.path.join(cfg.TRAINED_MODEL_PATH, f"{mode}_batch.png"),
                 bbox_inches="tight")
 
 
@@ -483,7 +489,7 @@ def visualize_predictions(path, mode, model, seed, n_examples=3, threshold=0.50)
         plt.imshow(image_np)
         plt.axis('off')
 
-    plt.savefig(os.path.join(cfg.DEFAULT_OUTPUT_DIR, f"{mode}_predictions.png"),
+    plt.savefig(os.path.join(cfg.TRAINED_MODEL_PATH, f"{mode}_predictions.png"),
                 bbox_inches="tight")
 
 
@@ -501,7 +507,7 @@ def build_inputs_for_object_detection(image, input_image_size):
 
 def get_timestamp():
     europe = pytz.timezone("Europe/Berlin")
-    timestamp = datetime.datetime.now(europe).strftime("%Y%m%d-%H%M%S")
+    timestamp = dt.datetime.now(europe).strftime("%Y%m%d-%H%M%S")
     return timestamp
 
 
@@ -593,40 +599,6 @@ def get_model_config(model_dir):
     return exp_config
 
 
-# TODO
-def get_drift_moments(log_dir, eval_dir, model, threshold=0.5):
-
-    data = tf.data.TFRecordDataset(eval_dir)
-    input_image_size = cfg.IMAGE_SIZE
-    model_fn = model.signatures['serving_default']
-
-    category_index, tf_ex_decoder = get_ex_decoder()
-
-    for i, tfr_tensor in enumerate(data):
-        decoded_tensor = tf_ex_decoder.decode(tfr_tensor)
-        image = build_inputs_for_object_detection(
-            decoded_tensor['image'], input_image_size)
-        image = tf.expand_dims(image, axis=0)
-        image = tf.cast(image, dtype=tf.uint8)
-        # image_np = image[0].numpy()
-        result = model_fn(image)
-
-        # result = np.where(result['detection_scores'][0].numpy() > threshold)
-
-        scores = result['detection_scores'][0].numpy()
-
-        bbox_true = decoded_tensor['groundtruth_boxes'].numpy() * cfg.N_WINDOWS
-        bbox_pred = result['detection_boxes'][0].numpy() / cfg.TARGETSIZE \
-            * cfg.N_WINDOWS
-
-        bbox_pred = bbox_pred[scores > threshold]
-
-        y_true = decoded_tensor['groundtruth_classes'].numpy().astype(int)
-        y_pred = result['detection_classes'][0].numpy().astype(int)
-
-        y_pred = y_pred[bbox_pred]
-
-
 def matrix_to_img(matrix, number, exp_path, mode="color"):
 
     if mode == "color":
@@ -670,3 +642,28 @@ def start_tfr_script(repo_dir: str, data_dir: str, tfr_dir: str, prefix: str):
     except subprocess.TimeoutExpired:
         p.kill()
         outs, errs = p.communicate()
+        
+        
+def load_image(path: str) -> np.ndarray:
+    image = Image.open(path)
+    return np.array(image)
+
+
+def datetime_2_str(date: dt.datetime) -> str:
+    return dt.datetime.strftime(date, '%m-%d-%Y')
+
+
+def get_all_numbers_of_traces_per_log():
+    files = get_event_log_paths()
+    number_per_log = {}
+    for name, path in files.items():
+        log = pm.read_xes(os.path.join(path,name), return_legacy_log_object=True)
+        number_per_log[name] = len(log)
+    number_of_traces_path = os.path.join(cfg.DEFAULT_DATA_DIR, "number_of_traces.json")
+    with open(number_of_traces_path, "w", encoding='utf-8') as file:
+        json.dump(number_per_log, file)
+        
+
+def get_number_of_traces(event_log):
+    return len(event_log)
+        
