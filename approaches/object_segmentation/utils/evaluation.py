@@ -166,13 +166,6 @@ def evaluate(data_dir, model, threshold=0.5):
                                   "Average Lag": metrics["lag"]
                                   }
 
-    # if cfg.ENCODING_TYPE == "winsim":
-    #     close_file(window_info)
-    # elif cfg.ENCODING_TYPE == "vdd":
-    #     close_file(timestamps_per_trace)
-
-    # close_file(date_info)
-
     save_results(eval_results)
 
 

@@ -109,7 +109,7 @@ def vdd_pipeline():
     drift_info = vdd_helper.extract_vdd_drift_information(cfg.DEFAULT_LOG_DIR)
 
     bbox_df = pd.DataFrame()
-    
+
     # incrementally store number of log based on drift type - for file naming purposes
     drift_number = 1
 
@@ -121,9 +121,9 @@ def vdd_pipeline():
     # iterate through log files
     for name, path in tqdm(log_files.items(), desc="Preprocessing Event Logs",
                            unit="Event Log"):
-        
+
         log_path = os.path.join(path, name)
-        
+
         # load event log
         event_log = cnn_utils.import_event_log(path=path, name=name)
 
@@ -135,16 +135,24 @@ def vdd_pipeline():
                 name,
                 log_path,
                 cfg.DEFAULT_DATA_DIR
-                )
+            )
         else:
             minerful_csv_path = vdd_helper.get_minerful_constraints_path(log_name=name,
                                                                          constraints_dir=cfg.CONSTRAINTS_DIR)
+            if not minerful_csv_path:
+                minerful_csv_path = \
+                vdd_helper.vdd_mine_minerful_for_declare_constraints(
+                    name,
+                    log_path,
+                    cfg.DEFAULT_DATA_DIR
+                )
 
         ts_ticks = vdd_helper.vdd_save_separately_timestamp_for_each_constraint_window(
-                filtered_log)
-        
-        first_timestamps[name] = vdd_helper.get_first_timestamp_per_trace(filtered_log)
-        
+            filtered_log)
+
+        first_timestamps[name] = vdd_helper.get_first_timestamp_per_trace(
+            filtered_log)
+
         number_of_traces[name] = seg_utils.get_number_of_traces(filtered_log)
 
         constraints = vdd_helper.vdd_import_minerful_constraints_timeseries_data(
@@ -163,13 +171,13 @@ def vdd_pipeline():
         # The error occurs only extremely rarely and is therefore skipped
         except ValueError:
             continue
-            
-        timestamps = vdd_helper.get_drift_moments_timestamps(log_name=name, 
+
+        timestamps = vdd_helper.get_drift_moments_timestamps(log_name=name,
                                                              drift_info=drift_info)
-        
+
         drift_types = vdd_helper.get_drift_types(log_name=name,
                                                  drift_info=drift_info)
-        
+
         bboxes, fig_bbox, log_date_info = vdd_helper.vdd_draw_drift_map_with_clusters(
             data=constraints,
             number=drift_number,
@@ -177,46 +185,50 @@ def vdd_pipeline():
             ts_ticks=ts_ticks,
             timestamps=timestamps,
             drift_types=drift_types)
-        
-        bbox_df = vdd_helper.update_bboxes_for_vdd(bbox_df, bboxes, name, fig_bbox)
-            
+
+        bbox_df = vdd_helper.update_bboxes_for_vdd(
+            bbox_df, bboxes, name, fig_bbox)
+
         log_matching[name] = drift_number
         date_info[name] = log_date_info
-        
+
         # increment log number
         drift_number += 1
-        
+
     drift_info = vdd_helper.merge_bboxes_with_drift_info(bbox_df, drift_info)
-    
+
     drift_info.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "drift_info.csv"))
-    
-    log_matching_df = pd.DataFrame.from_dict(log_matching, 
-                                                orient="index", 
-                                                columns=["image_id"])
-    log_matching_df.to_csv(os.path.join(cfg.DEFAULT_DATA_DIR, "log_matching.csv"))
-    
+
+    log_matching_df = pd.DataFrame.from_dict(log_matching,
+                                             orient="index",
+                                             columns=["image_id"])
+    log_matching_df.to_csv(os.path.join(
+        cfg.DEFAULT_DATA_DIR, "log_matching.csv"))
+
     date_info_path = os.path.join(cfg.DEFAULT_DATA_DIR, "date_info.json")
     with open(date_info_path, "w", encoding='utf-8') as file:
         json.dump(date_info, file)
-    
-    first_timestamps_path = os.path.join(cfg.DEFAULT_DATA_DIR, "first_timestamps.json")
+
+    first_timestamps_path = os.path.join(
+        cfg.DEFAULT_DATA_DIR, "first_timestamps.json")
     with open(first_timestamps_path, "w", encoding='utf-8') as file:
         json.dump(first_timestamps, file)
-        
-    number_of_traces_path = os.path.join(cfg.DEFAULT_DATA_DIR, "number_of_traces.json")
+
+    number_of_traces_path = os.path.join(
+        cfg.DEFAULT_DATA_DIR, "number_of_traces.json")
     with open(number_of_traces_path, "w", encoding='utf-8') as file:
         json.dump(number_of_traces, file)
-    
-    vdd_helper.generate_vdd_annotations(drift_info, 
-                                   dir=cfg.DEFAULT_DATA_DIR,
-                                   log_matching=log_matching,
-                                   log_names=log_matching.keys())
+
+    vdd_helper.generate_vdd_annotations(drift_info,
+                                        dir=cfg.DEFAULT_DATA_DIR,
+                                        log_matching=log_matching,
+                                        log_names=log_matching.keys())
 
     if cfg.AUTOMATE_TFR_SCRIPT:
         seg_utils.start_tfr_script(repo_dir=cfg.TENSORFLOW_MODELS_DIR,
-                                data_dir=cfg.DEFAULT_DATA_DIR,
-                                tfr_dir=cfg.TFR_RECORDS_DIR,
-                                prefix=cfg.OUTPUT_PREFIX)
+                                   data_dir=cfg.DEFAULT_DATA_DIR,
+                                   tfr_dir=cfg.TFR_RECORDS_DIR,
+                                   prefix=cfg.OUTPUT_PREFIX)
 
 
 def log_to_windowed_dfg_count(event_log, n_windows):

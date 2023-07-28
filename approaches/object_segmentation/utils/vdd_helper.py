@@ -644,8 +644,5 @@ def get_minerful_constraints_path(log_name: str, constraints_dir: str):
     if os.path.isfile(constraints_path):
         return constraints_path
     else:
-        raise FileNotFoundError(f"The provided event log {log_name} does not have a \
-                                corresponding MINERful constraint yet. \
-                                Please mine constraints with MINERful first.")
-    
+        return None   
     
