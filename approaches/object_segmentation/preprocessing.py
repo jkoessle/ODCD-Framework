@@ -14,11 +14,19 @@ from scipy import spatial
 from scipy.stats import wasserstein_distance
 from pm4py.objects.conversion.log import converter as log_converter
 from pm4py.objects.log.util import dataframe_utils
+from pm4py.objects.log.obj import EventLog
+from typing import Tuple
 from cnn_image_detection.utils.sanity_checks import check_dfg_graph_freq
 from tqdm import tqdm
 
 
-def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
+def winsim_pipeline(n_windows=100, p_mode="train"):
+    """Main function for preprocessing the event logs for the WINSIM approach. 
+
+    Args:
+        n_windows (int, optional): Number of windows. Defaults to 100.
+        p_mode (str, optional): Preprocessing mode. Defaults to "train".
+    """
     # create experiment folder structure
     cfg.DEFAULT_DATA_DIR = cnn_utils.create_multilabel_experiment(cfg.DEFAULT_DATA_DIR)
 
@@ -100,6 +108,8 @@ def preprocessing_pipeline_multilabel(n_windows=100, p_mode="train"):
         
 
 def vdd_pipeline():
+    """Main function for preprocessing the event logs for the VDD approach. 
+    """
     # create experiment folder structure
     cfg.DEFAULT_DATA_DIR = vdd_helper.create_experiment(cfg.DEFAULT_DATA_DIR)
 
@@ -158,14 +168,13 @@ def vdd_pipeline():
         constraints = vdd_helper.vdd_import_minerful_constraints_timeseries_data(
             minerful_csv_path)
 
-        # workaround
         try:
             constraints, \
-                cluster_bounds, \
-                horisontal_separation_bounds_by_cluster, \
-                clusters_with_declare_names, \
-                clusters_dict, \
-                cluster_order = \
+                _, \
+                _, \
+                _, \
+                _, \
+                _ = \
                 vdd.do_cluster_changePoint(constraints, cp_all=cfg.CP_ALL)
         # In some edge cases the change points can not be determined
         # The error occurs only extremely rarely and is therefore skipped
@@ -178,7 +187,7 @@ def vdd_pipeline():
         drift_types = vdd_helper.get_drift_types(log_name=name,
                                                  drift_info=drift_info)
 
-        bboxes, fig_bbox, log_date_info = vdd_helper.vdd_draw_drift_map_with_clusters(
+        bboxes, log_date_info = vdd_helper.vdd_draw_drift_map_with_clusters(
             data=constraints,
             number=drift_number,
             exp_path=cfg.DEFAULT_DATA_DIR,
@@ -187,7 +196,7 @@ def vdd_pipeline():
             drift_types=drift_types)
 
         bbox_df = vdd_helper.update_bboxes_for_vdd(
-            bbox_df, bboxes, name, fig_bbox)
+            bbox_df, bboxes, name)
 
         log_matching[name] = drift_number
         date_info[name] = log_date_info
@@ -231,7 +240,20 @@ def vdd_pipeline():
                                    prefix=cfg.OUTPUT_PREFIX)
 
 
-def log_to_windowed_dfg_count(event_log, n_windows):
+def log_to_windowed_dfg_count(event_log: EventLog, n_windows: int) \
+    -> Tuple[np.ndarray,list,dict,tuple]:
+    """Convert event log to directly follows frequency counts for each activity.
+
+    Args:
+        event_log (EventLog): Event log
+        n_windows (int): Number of windows
+
+    Returns:
+        Tuple[np.ndarray,list,dict,tuple]: Tuple, containing the dfg frequency counts, 
+        border information of windows in form of trace indices, 
+        window information with first trace and timestamp and
+        date information with first and last timestamp of event log
+    """
 
     # convert event log to pandas dataframe
     event_log_df = log_converter.apply(
@@ -246,7 +268,6 @@ def log_to_windowed_dfg_count(event_log, n_windows):
     
     # get unique event names
     act_names = np.unique(event_log_df["concept:name"])
-    # idx_names = np.arange(len(act_names))
 
     # get unique trace names
     # hint: pandas unique does not sort the result, therefore it is faster and the
@@ -263,8 +284,6 @@ def log_to_windowed_dfg_count(event_log, n_windows):
     right_boundary = window_size
     borders = []
     dfg_graphs = []
-    # start_act = []
-    # end_act = []
 
     window_information = {}
 
@@ -288,7 +307,7 @@ def log_to_windowed_dfg_count(event_log, n_windows):
                                   .isin(w_unique_traces)]
 
         # get dfg graph for window
-        graph, sa, ea = discover_dfg_typed(log_window)
+        graph, _, _ = discover_dfg_typed(log_window)
 
         # transform dfg graph into dfg matrix
         for relation, freq in graph.items():
@@ -298,8 +317,6 @@ def log_to_windowed_dfg_count(event_log, n_windows):
             freq_count += freq
 
         dfg_graphs.append(dfg_matrix_df)
-        # start_act.append(sa)
-        # end_act.append(ea)
 
         borders.append((left_boundary, right_boundary))
 
@@ -323,12 +340,20 @@ def log_to_windowed_dfg_count(event_log, n_windows):
         f"Number of relations in all windows: {freq_count}"
     )
     
-    # , np.array(start_act), np.array(end_act)
     return np.array(dfg_graphs), borders, window_information, date_info
 
 
-def similarity_calculation(windowed_dfg):
+def similarity_calculation(windowed_dfg: np.ndarray) -> np.ndarray:
+    """Compute similarity values for each element in directly follows relations.
+    Creates a quadratic matrix that can be treated as an image by normalizing 
+    the similarity values.
 
+    Args:
+        windowed_dfg (np.ndarray): Array containing directly follows relations
+
+    Returns:
+        np.ndarray: Similarity matrix
+    """
     # create matrix
     n = len(windowed_dfg)
     sim_matrix = np.zeros((n, n))
@@ -343,7 +368,6 @@ def similarity_calculation(windowed_dfg):
                                                       matrix_j, 
                                                       cfg.DISTANCE_MEASURE)
                 sim_matrix[j, i] = sim_matrix[i, j]
-            # sim_matrix[i, j] = calc_distance_norm(matrix_i, matrix_j)
 
     # check diagonal of similarity matrix
     assert np.sum(np.diagonal(sim_matrix)
@@ -355,17 +379,21 @@ def similarity_calculation(windowed_dfg):
     # transform matrix values to color integers
     img_matrix = np.uint8(norm_sim_matrix * 255)
 
-    # stacked_img = np.stack((img_matrix,)*3, axis=-1)
-    # data = Image.fromarray(img_matrix)
-    # data.show()
-    # from matplotlib import pyplot as plt
-    # plt.imshow(img_matrix, interpolation='nearest')
-    # plt.show()
-
     return img_matrix
 
 
-def calc_distance_norm(matrix_1, matrix_2, option):
+def calc_distance_norm(matrix_1: np.ndarray, matrix_2: np.ndarray, 
+                       option: str) -> float:
+    """Calculate distance/similarity value using the given directly follows matrices.
+
+    Args:
+        matrix_1 (np.ndarray): Directly follows matrix
+        matrix_2 (np.ndarray): Directly follows matrix
+        option (str): Indicates which measure to use for calculation
+
+    Returns:
+        float: Similarity value
+    """
     diff = matrix_1 - matrix_2
     if option == "fro":
         # Frobenius norm
@@ -403,4 +431,4 @@ def calc_distance_norm(matrix_1, matrix_2, option):
 
 if __name__ == "__main__":
     
-    preprocessing_pipeline_multilabel(cfg.N_WINDOWS)
+    winsim_pipeline(cfg.N_WINDOWS)

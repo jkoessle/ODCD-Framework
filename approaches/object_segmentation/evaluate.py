@@ -1,8 +1,3 @@
-# import logging, os
-
-# logging.disable(logging.WARNING)
-# os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
 import random
 import tensorflow as tf
 
@@ -11,7 +6,12 @@ import utils.utilities as utils
 import utils.evaluation as eval
 
 
-def visualize_bboxes(model):
+def visualize_bboxes(model: tf.keras.Model):
+    """Call visualizing functions.
+
+    Args:
+        model (tf.keras.Model): TensorFlow model
+    """
     seed = random.randint(0, 10000)
 
     utils.visualize_batch(path=cfg.EVAL_DATA_DIR,
@@ -25,11 +25,6 @@ def visualize_bboxes(model):
 
 
 if __name__ == "__main__":
-    # tf.get_logger().setLevel('ERROR')
-
-    # from absl import logging
-
-    # tf.autograph.set_verbosity(0)
     model = tf.saved_model.load(cfg.TRAINED_MODEL_PATH)
     visualize_bboxes(model)
 

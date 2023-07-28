@@ -6,7 +6,12 @@ import object_segmentation.utils.config as cfg
 import object_segmentation.utils.utilities as seg_utils
 import object_segmentation.utils.vdd_helper as vdd
 
-def generate_only_annotations(data_dir):
+def generate_only_annotations(data_dir: str):
+    """Generate only annotations for given data
+
+    Args:
+        data_dir (str): Image data directory
+    """
     drift_info = pd.read_csv(os.path.join(data_dir, "drift_info.csv"))
     log_matching = pd.read_csv(os.path.join(data_dir, "log_matching.csv"))
     
@@ -41,6 +46,6 @@ if __name__ == "__main__":
         pp.vdd_pipeline()
     else:
         print("Starting WINSIM pipeline")
-        pp.preprocessing_pipeline_multilabel(n_windows=cfg.N_WINDOWS, p_mode=cfg.P_MODE)
+        pp.winsim_pipeline(n_windows=cfg.N_WINDOWS, p_mode=cfg.P_MODE)
     
     

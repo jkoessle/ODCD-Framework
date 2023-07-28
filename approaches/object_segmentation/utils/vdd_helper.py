@@ -14,6 +14,7 @@ from pathlib import Path
 from matplotlib import pyplot as plt
 from datetime import datetime
 from PIL import Image
+from typing import Union
 
 
 def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
@@ -24,7 +25,6 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
     Author: Anton Yeshchenko
     Note: Adapted for the use of this work.
     '''
-
     data_c = copy.deepcopy(data)
     for i in range(len(data)):
         for j in range(len(data[i])):
@@ -35,14 +35,14 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
 
     min_date = np.min(ts_ticks_date)
     max_date = np.max(ts_ticks_date)
-    
+
     date_info_min = datetime.strftime(min_date, '%m-%d-%Y')
     date_info_max = datetime.strftime(max_date, '%m-%d-%Y')
-    
+
     date_info = (date_info_min, date_info_max)
 
     y_data = np.array(data_c)
-    
+
     if cfg.KEEP_AXIS:
         fig = plt.figure(figsize=(10, 10))
         ax = plt.gca()
@@ -51,8 +51,8 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
 
         plt.xticks(rotation=90)
         ax.imshow(y_data, cmap=cmap, interpolation='nearest',
-              extent=[min_date, max_date, y_data.shape[0], 0], aspect='auto'
-              )
+                  extent=[min_date, max_date, y_data.shape[0], 0], aspect='auto'
+                  )
         plt.savefig(os.path.join(exp_path, f"{number}.jpg"))
     else:
         fig = plt.figure(figsize=(1, 1))
@@ -60,8 +60,8 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
         ax.set_axis_off()
         fig.add_axes(ax)
         ax.imshow(y_data, cmap=cmap, interpolation='nearest',
-                extent=[min_date, max_date, y_data.shape[0], 0], aspect='auto'
-                )
+                  extent=[min_date, max_date, y_data.shape[0], 0], aspect='auto'
+                  )
         fig.savefig(os.path.join(exp_path, f"{number}.jpg"),
                     dpi=y_data.shape[0])
 
@@ -101,10 +101,10 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                                                max_date,
                                                fig_bbox,
                                                drift_types[key])
-            
+
     plt.close()
-    
-    return bboxes, fig_bbox, date_info
+
+    return bboxes, date_info
 
 
 def vdd_mine_minerful_for_declare_constraints(log_name: str, path, exp_path):
@@ -261,12 +261,6 @@ def vdd_import_minerful_constraints_timeseries_data(path, constraint_type="confi
                                    'interestFactor']):
         raise ValueError(constraint_type +
                          " is not a constraint type")
-    # elif algoPrmts.constraint_type_used == 'confidence':
-    #     cn = "Confidence"
-    # elif algoPrmts.constraint_type_used == 'support':
-    #     cn = "Support"
-    # else:
-    #     cn = "InterestF"
 
     constraints = []
     for i, j in zip(sequences, header_output):
@@ -276,13 +270,18 @@ def vdd_import_minerful_constraints_timeseries_data(path, constraint_type="confi
     return constraints
 
 
-def vdd_save_separately_timestamp_for_each_constraint_window(log):
-    ''' 
+def vdd_save_separately_timestamp_for_each_constraint_window(log) -> list:
+    """
     Source: 
     https://github.com/yesanton/Process-Drift-Visualization-With-Declare/blob/master/src/auxiliary/mine_features_from_data.py
     Author: Anton Yeshchenko
     Note: Adapted for the use of this work.
-    '''
+    
+    Save timestamp for each constraint window.
+
+    Returns:
+        list: List, containing relevant timestamps
+    """
     # every first timestamp of each trace is stored here
     try:
         timestamps = [trace._list[0]._dict['time:timestamp'].strftime(
@@ -291,30 +290,27 @@ def vdd_save_separately_timestamp_for_each_constraint_window(log):
         timestamps = [trace._list[0]._dict['time:timestamp'][0:8]
                       for trace in log._list]
     time_out = []
-    # n_th = 0
-    # number_of_timestamps = (len(timestamps) - cfg.SUB_L) / cfg.SLI_BY
-    # skip_every_n_th = math.ceil(number_of_timestamps / 30)
 
-    # timestamps = sorted(timestamps)
     for i in range(0, len(timestamps) - cfg.SUB_L, cfg.SLI_BY):
-        # print (timestamps[i] + " for from: " + str(i) + ' to ' + str(i+window_size))
-        # results_writer.writerow([timestamps[i]])
-        # if n_th % skip_every_n_th == 0:
-        #     time_out.append(timestamps[i])
-        # else:
-        #     time_out.append(" ")
-        # n_th += 1
         time_out.append(timestamps[i])
     return time_out
 
 
-def get_first_timestamp_per_trace(log):
+def get_first_timestamp_per_trace(log) -> dict:
+    """Get first timestamp per trace for log.
+
+    Args:
+        log (EventLog): Event log
+
+    Returns:
+        dict: Dictionary, containing the first timestamp for each trace
+    """
     timestamps = {}
     try:
         for trace in log._list:
             trace_id = int(trace._attributes["concept:name"])
             timestamps[trace_id] = trace._list[0]._dict['time:timestamp'].strftime(
-            '%m-%d-%Y')
+                '%m-%d-%Y')
     except AttributeError:
         for trace in log._list:
             trace_id = int(trace._attributes["concept:name"])
@@ -322,8 +318,16 @@ def get_first_timestamp_per_trace(log):
     return timestamps
 
 
-def extract_vdd_drift_information(dir) -> pd.DataFrame:
+def extract_vdd_drift_information(dir: str) -> pd.DataFrame:
+    """Extract information from drift info file generated by CDLG.
 
+    Args:
+        dir (str): Directory of drift info file
+
+    Returns:
+        pd.DataFrame: DataFrame containing all relevant 
+        information about drifts
+    """
     pd_df = utils.get_drift_info(dir)
 
     indices = pd_df[pd_df["drift_sub_attribute"] == "change_trace_index"]
@@ -369,6 +373,16 @@ def extract_vdd_drift_information(dir) -> pd.DataFrame:
 
 
 def get_drift_moments_timestamps(log_name: str, drift_info: pd.DataFrame) -> dict:
+    """Get timestamp of each drift for event log.
+
+    Args:
+        log_name (str): Name of event log
+        drift_info (pd.DataFrame): Drift info file
+
+    Returns:
+        dict: Dictionary containing a tuple of (start time, end time) 
+        for each drift
+    """
     log_info = drift_info.loc[drift_info["log_name"] == log_name]
     drift_ids = pd.unique(log_info["drift_or_noise_id"])
     timestamps = {}
@@ -387,6 +401,15 @@ def get_drift_moments_timestamps(log_name: str, drift_info: pd.DataFrame) -> dic
 
 
 def get_drift_types(log_name: str, drift_info: pd.DataFrame) -> dict:
+    """Get drift types for event log.
+
+    Args:
+        log_name (str): Name of event log
+        drift_info (pd.DataFrame): Drift info file
+
+    Returns:
+        dict: Dictionary, containing the drift type for each drift
+    """
     log_info = drift_info.loc[drift_info["log_name"] == log_name]
     drift_ids = pd.unique(log_info["drift_or_noise_id"])
     drift_types = {}
@@ -401,23 +424,30 @@ def get_drift_types(log_name: str, drift_info: pd.DataFrame) -> dict:
 def get_bbox_coordinates(start: datetime, end: datetime,
                          min: datetime, max: datetime,
                          fig_bbox: tuple, drift_type: str) -> str:
+    """Get relative coordinates of bboxes.
+
+    Args:
+        start (datetime): Start time of drift
+        end (datetime): End time of drift
+        min (datetime): First timestamp in event log
+        max (datetime): Last timestamp in event log
+        fig_bbox (tuple): Bounding box of figure
+        drift_type (str): Drift type
+
+    Returns:
+        str: Bounding box of drift in format "[x,x,x,x]"
+    """
     relative_start = (mdates.date2num(start) - mdates.date2num(min)) / \
         (mdates.date2num(max) - mdates.date2num(min))
     relative_end = (mdates.date2num(end) - mdates.date2num(min)) / \
         (mdates.date2num(max) - mdates.date2num(min))
 
     f_xmin, f_ymin, f_xmax, f_ymax = fig_bbox
-    
-    width, height = (f_xmax - f_xmin), (f_ymax - f_ymin)
-    size = (width, height)
-    
-    # xmin = int(relative_start * width) + int(f_xmin)
-    # xmax = int(relative_end * width) + int(f_xmin)  # (int(width - f_xmax))
-    # ymin = int(f_ymin)
-    # ymax = int(f_ymax)
-    
+
+    width = (f_xmax - f_xmin)
+
     xmin = relative_start * width + f_xmin
-    xmax = relative_end * width + f_xmin # (int(width - f_xmax))
+    xmax = relative_end * width + f_xmin
     if cfg.KEEP_AXIS:
         # hardcoded for figsize (10,10)
         ymin = f_ymin + 10
@@ -433,8 +463,7 @@ def get_bbox_coordinates(start: datetime, end: datetime,
 
     if drift_type == "sudden":
         bbox = get_sudden_bbox_coco(bbox=bbox,
-                                    f_bbox=fig_bbox,
-                                    im_size=size)
+                                    f_bbox=fig_bbox)
     else:
         bbox = validate_bbox(bbox, fig_bbox)
 
@@ -443,8 +472,17 @@ def get_bbox_coordinates(start: datetime, end: datetime,
 
 
 def update_bboxes_for_vdd(df: pd.DataFrame, bboxes: dict,
-                          log_name: str, fig_bbox: tuple) -> pd.DataFrame:
+                          log_name: str) -> pd.DataFrame:
+    """Update bounding boxes information in drift info for event log.
 
+    Args:
+        df (pd.DataFrame): DataFrame, containing information about bboxes
+        bboxes (dict): Bounding boxes per drift
+        log_name (str): Event log name
+
+    Returns:
+        pd.DataFrame: DataFrame, containing updated information
+    """
     df_bbox = pd.DataFrame(bboxes.items(),
                            columns=["drift_or_noise_id", "vdd_bbox"])
 
@@ -459,19 +497,40 @@ def update_bboxes_for_vdd(df: pd.DataFrame, bboxes: dict,
 
 def merge_bboxes_with_drift_info(bboxes_df: pd.DataFrame,
                                  drift_info: pd.DataFrame) -> pd.DataFrame:
+    """Merge bbox information with drift info.
+
+    Args:
+        bboxes_df (pd.DataFrame): DataFrame, containing bbox information
+        drift_info (pd.DataFrame): DataFrame, containing drift information 
+
+    Returns:
+        pd.DataFrame: DataFrame, merged with updated information
+    """
     drift_info = pd.merge(drift_info, bboxes_df, on=[
                           "log_name", "drift_or_noise_id"])
     return drift_info
 
 
-def get_timestamp():
+def get_timestamp() -> str:
+    """Get timestamp for current time.
+
+    Returns:
+        str: Timestamp as string in format "%Y%m%d-%H%M%S"
+    """
     europe = pytz.timezone("Europe/Berlin")
     timestamp = datetime.now(europe).strftime("%Y%m%d-%H%M%S")
     return timestamp
 
 
-def create_experiment(dir):
+def create_experiment(dir) -> str:
+    """Creates an experiment directory.
 
+    Args:
+        dir (str): Directory in which the experiment is created
+
+    Returns:
+        str: Path of created directory as string
+    """
     timestamp = get_timestamp()
 
     exp_path = os.path.join(dir, "vdd", f"experiment_{timestamp}")
@@ -481,7 +540,17 @@ def create_experiment(dir):
     return exp_path
 
 
-def generate_vdd_annotations(drift_info, dir, log_matching, log_names):
+def generate_vdd_annotations(drift_info: pd.DataFrame, dir: str,
+                             log_matching: dict, log_names: list):
+    """Generate annotations for VDD encoding approach. 
+    Annotations are saved in JSON format.
+
+    Args:
+        drift_info (pd.DataFrame): DataFrame, containing drift information
+        dir (str): Path of data directory
+        log_matching (dicht): Dict, containing matching between log names and images
+        log_names (list): List, containing names of all event logs
+    """
 
     categories = [
         {"supercategory": "drift", "id": 1, "name": "sudden"},
@@ -524,7 +593,7 @@ def generate_vdd_annotations(drift_info, dir, log_matching, log_names):
             drift_type = pd.unique(drift["drift_type"])[0]
 
             category_id = utils.get_drift_id(drift_type)
-            bbox = get_bbox(drift, drift_type, img.size)
+            bbox = get_bbox(drift)
             area = utils.get_area(width=bbox[2], height=bbox[3])
             segmentation = utils.get_segmentation(bbox)
             log_annotation = {
@@ -547,23 +616,34 @@ def generate_vdd_annotations(drift_info, dir, log_matching, log_names):
         json.dump(anno_file, file)
 
 
-def get_bbox(drift, drift_type, im_size):
+def get_bbox(drift: pd.DataFrame) -> list:
+    """Get bounding box for drift.
+
+    Args:
+        drift (pd.DataFrame): DataFrame, containig information about drift
+
+    Returns:
+        list: List, containing bbox
+    """
     bbox = utils.special_string_2_list_float(drift.iloc[0]["vdd_bbox"])
-    # if drift_type == "sudden":
-    #     bbox = get_sudden_bbox_coco(bbox, im_size)
     return utils.bbox_coco_format(bbox)
 
 
-def get_sudden_bbox_coco(bbox: list, f_bbox: tuple, im_size) -> list:
+def get_sudden_bbox_coco(bbox: list, f_bbox: tuple) -> list:
+    """Get bounding box for sudden drift.
+
+    Args:
+        bbox (list): Bounding box of drift
+        f_bbox (tuple): Bounding box of figure
+
+    Returns:
+        list: Adapted bounding box
+    """
     f_xmin, f_ymin, f_xmax, f_ymax = f_bbox
-    # f_xmin, f_ymin, f_xmax, f_ymax = int(f_xmin), int(f_ymin), \
-    #     int(f_xmax), int(f_ymax)
-    # f_xmin, f_ymin, f_xmax, f_ymax = f_xmin, f_ymin, \
-    #     f_xmax, f_ymax
-    # width, height = im_size
+
     # use 2% of image width to enlarge sudden drifts
     factor = f_xmax * 0.02
-    
+
     if cfg.KEEP_AXIS:
         # hardcoded for figsize (10,10)
         f_ymin = f_ymin + 10
@@ -572,9 +652,9 @@ def get_sudden_bbox_coco(bbox: list, f_bbox: tuple, im_size) -> list:
     # artificially enlarge sudden bboxes for detection
     if cfg.RESIZE_SUDDEN_BBOX and bbox[0] < (factor + f_xmin):
         bbox[0] = f_xmin  # xmin
-        bbox[1] = f_ymin # ymin
+        bbox[1] = f_ymin  # ymin
         bbox[2] += factor  # xmax
-        bbox[3] = f_ymax # ymax
+        bbox[3] = f_ymax  # ymax
     elif cfg.RESIZE_SUDDEN_BBOX and bbox[0] > (factor + f_xmin):
         if check_image_width(bbox[2] + factor, f_xmax):
             bbox[0] -= factor
@@ -599,33 +679,41 @@ def get_sudden_bbox_coco(bbox: list, f_bbox: tuple, im_size) -> list:
     return bbox
 
 
-def check_image_width(value, width):
-    # check if window value would lie outside of image
+def check_image_width(value: Union[int, float], width: Union[int, float]) -> bool:
+    """Checks if window value lies outside of image.
+
+    Args:
+        value (Union[int, float]): Pixel value to check
+        width (Union[int, float]): Image width
+
+    Returns:
+        bool: True, if pixel value lies within image, False otherwise
+    """
     if value > width:
         return False
     else:
         return True
 
 
-def get_relative_plot_coordinates(xmin, ymin, xmax, ymax, width, height):
-    xmin = xmin / width
-    xmax = 1 - xmax / width
-    ymin = ymin / height
-    ymax = 1 - ymax / height
+def validate_bbox(bbox: list, f_bbox: list) -> list:
+    """Validate bbox to figure.
 
-    return (xmin, ymin, xmax, ymax)
+    Args:
+        bbox (list): Bbox
+        f_bbox (list): Figure size
 
-
-def validate_bbox(bbox, f_bbox):
+    Returns:
+        list: List, containing validated bbox
+    """
     xmin, ymin, xmax, ymax = bbox
-    f_xmin, f_ymin, f_xmax, f_ymax = f_bbox
-    
+    f_xmin, _, f_xmax, _ = f_bbox
+
     if xmax > f_xmax:
         xmax = f_xmax
-    
+
     if xmin < f_xmin:
         xmin = f_xmin
-    
+
     return [xmin, ymin, xmax, ymax]
 
 
@@ -637,12 +725,11 @@ def get_minerful_constraints_path(log_name: str, constraints_dir: str):
         log_name (str): Name of event log.
         constraints_dir (str): Directory, where MINERful contraints are saved.
     """
-    
+
     log_name = log_name.split(".")[0]
     constraints_path = os.path.join(constraints_dir, f"{log_name}.csv")
-    
+
     if os.path.isfile(constraints_path):
         return constraints_path
     else:
-        return None   
-    
+        return None

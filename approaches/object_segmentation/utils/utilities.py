@@ -14,10 +14,18 @@ from PIL import Image
 from official.vision.dataloaders.tf_example_decoder import TfExampleDecoder
 from official.vision.utils.object_detection import visualization_utils
 from official.core import exp_factory
+from official.core.config_definitions import ExperimentConfig
+from typing import Union, Tuple
+from pm4py.objects.log.obj import EventLog
 from official.vision.ops.preprocess_ops import resize_and_crop_image
 
 
-def get_event_log_paths():
+def get_event_log_paths() -> dict:
+    """Get event logs for directory.
+
+    Returns:
+        dict: Dictionary, containing names and paths of event logs
+    """
     list_of_files = {}
     for dir_path, dir_names, filenames in os.walk(cfg.DEFAULT_LOG_DIR):
         for filename in filenames:
@@ -29,8 +37,15 @@ def get_event_log_paths():
     return list_of_files
 
 
-def get_drift_coordinates(change_idx):
-    
+def get_drift_coordinates(change_idx: list) -> list:
+    """Get drift bbox.
+
+    Args:
+        change_idx (list): List of change indices
+
+    Returns:
+        list: Bbox of drift
+    """
     assert len(change_idx) > 0, "Error in border mapping"
 
     if len(change_idx) > 1:
@@ -42,8 +57,18 @@ def get_drift_coordinates(change_idx):
     return [xmin, ymin, xmax, ymax]
 
 
-def update_trace_indices(df: pd.DataFrame, log_name, borders):
+def update_trace_indices(df: pd.DataFrame, log_name: str,
+                         borders: list) -> pd.DataFrame:
+    """Update trace indices to window indices for event log.
 
+    Args:
+        df (pd.DataFrame): DataFrame with drift information
+        log_name (str): Name of event log
+        borders (list): Window borders in form of trace indices
+
+    Returns:
+        pd.DataFrame: Updated DataFrame
+    """
     df_filtered = df.loc[df["log_name"] == log_name]
 
     df_filtered.loc[:, "change_trace_index"] = df_filtered.loc[:, "change_trace_index"]\
@@ -56,7 +81,16 @@ def update_trace_indices(df: pd.DataFrame, log_name, borders):
     return df
 
 
-def df_trace_index_2_window_id(borders, trace_ids):
+def df_trace_index_2_window_id(borders: list, trace_ids: list) -> list:
+    """Convert trace index to window id.
+
+    Args:
+        borders (list): Window borders in form of trace indices
+        trace_ids (list): Trace indices for drift
+
+    Returns:
+        list: Window ID(s) in which the drift occurred
+    """
     result_set = []
 
     if len(trace_ids) > 1:
@@ -78,7 +112,7 @@ def df_trace_index_2_window_id(borders, trace_ids):
             if is_in_window(left, drift_start, right):
                 result_set.append(i)
                 break
-    
+
     # trace not found in borders
     if not result_set:
         result_set.append(-100)
@@ -86,48 +120,53 @@ def df_trace_index_2_window_id(borders, trace_ids):
     return result_set
 
 
-def is_in_window(left, x, right):
+def is_in_window(left: int, x: int, right: int) -> bool:
+    """Check if trace id is within window.
+
+    Args:
+        left (int): First trace ID in window
+        x (int): Trace ID to check
+        right (int): Last trace ID in window
+
+    Returns:
+        bool: True, if trace ID lies in window, False otherwise
+    """
     return left <= x <= right
 
 
-def df_is_in_window(left, x, right):
-    result = []
-    if len(x) > 1:
-        for elem in x:
-            r = left <= elem <= right
-            result.append(r)
-    else:
-        result.append(left <= x[0] <= right)
-    return result
+def special_string_2_list(s: str) -> list[int]:
+    """Convert given string to list of integers.
 
+    Args:
+        s (str): String of format "[x,x,x,x]"
 
-def special_string_2_list(s):
+    Returns:
+        list[int]: List containing integer values
+    """
     return list(map(int, s.translate({ord(i): None for i in "[]"}).split(",")))
 
 
-def special_string_2_list_float(s):
+def special_string_2_list_float(s: str) -> list[float]:
+    """Convert given string to list of floats.
+
+    Args:
+        s (str): String of format "[x,x,x,x]"
+
+    Returns:
+        list[float]: List containing float values
+    """
     return list(map(float, s.translate({ord(i): None for i in "[]"}).split(",")))
 
 
-def bbox_corner_to_center(box):
-    xmin, ymin, xmax, ymax = box[0], box[1], box[2], box[3]
-    x = (xmin + xmax) / 2
-    y = (ymin + ymax) / 2
-    width = xmax - xmin
-    height = ymax - ymin
-    return [x, y, width, height]
-
-
-def bbox_center_to_corner(box):
-    x, y, width, height = box[0], box[1], box[2], box[3]
-    xmin = x - 0.5 * width
-    ymin = y - 0.5 * height
-    xmax = x + 0.5 * width
-    ymax = y + 0.5 * height
-    return [xmin, ymin, xmax, ymax]
-
-
 def bbox_coco_format(box: list) -> list:
+    """Convert bbox to coco format.
+
+    Args:
+        box (list): Bounding box
+
+    Returns:
+        list: Boundining box in coco format
+    """
     xmin, ymin, xmax, ymax = box[0], box[1], box[2], box[3]
     x = xmin
     y = ymin
@@ -137,7 +176,15 @@ def bbox_coco_format(box: list) -> list:
 
 
 def get_bbox_as_list_coco(df: pd.DataFrame, drift_type: str) -> list:
+    """Get bbox in coco format as list.
 
+    Args:
+        df (pd.DataFrame): DataFrame containing drift information
+        drift_type (str): Respective drift type
+
+    Returns:
+        list: Bounding box
+    """
     if drift_type == "sudden":
         bbox = df.iloc[0]["change_trace_index"]
         bbox = get_sudden_bbox_coco(bbox)
@@ -157,7 +204,15 @@ def get_bbox_as_list_coco(df: pd.DataFrame, drift_type: str) -> list:
             [first_row[0], first_row[1], last_row[2], last_row[3]])
 
 
-def get_sudden_bbox_coco(bbox: list):
+def get_sudden_bbox_coco(bbox: list) -> list:
+    """Get bbox for sudden drift in coco format. 
+
+    Args:
+        bbox (list): Bounding box of sudden drift
+
+    Returns:
+        list: Bounding box
+    """
     # artificially enlarge sudden bboxes for detection
     if cfg.RESIZE_SUDDEN_BBOX and bbox[0] < cfg.RESIZE_VALUE:
         bbox[0] = 0
@@ -188,7 +243,15 @@ def get_sudden_bbox_coco(bbox: list):
     return bbox
 
 
-def get_gradual_bbox_coco(bbox):
+def get_gradual_bbox_coco(bbox: list) -> list:
+    """Get bbox for gradual drift in coco format. 
+
+    Args:
+        bbox (list): Bounding box of gradual drift
+
+    Returns:
+        list: Bounding box
+    """
     # add 1 if gradual drift happens in same window
     if bbox[0] == bbox[3]:
         if check_window_size(bbox[3] + 1):
@@ -202,15 +265,32 @@ def get_gradual_bbox_coco(bbox):
     return bbox
 
 
-def check_window_size(value, n_windows=cfg.N_WINDOWS):
-    # check if window value would lie outside of image
+def check_window_size(value: int, n_windows=cfg.N_WINDOWS) -> bool:
+    """Checks if window index lies outside of number of windows.
+
+    Args:
+        value (int): Window index
+        n_windows (int): Number of windows
+
+    Returns:
+        bool: True, if pixel value lies within n_windows, False otherwise
+    """
     if value > n_windows:
         return False
     else:
         return True
 
 
-def get_bbox_as_list_coco_untyped(df: pd.DataFrame, drift_type):
+def get_bbox_as_list_coco_untyped(df: pd.DataFrame, drift_type) -> list:
+    """Get bbox in coco format as untyped list.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing drift information
+        drift_type (str): Respective drift type
+
+    Returns:
+        list: Bounding box
+    """
     if drift_type == "sudden":
         bbox = special_string_2_list(df.iloc[0]["change_trace_index"])
         bbox = get_sudden_bbox_coco(bbox)
@@ -230,11 +310,28 @@ def get_bbox_as_list_coco_untyped(df: pd.DataFrame, drift_type):
             [first_row[0], first_row[1], last_row[2], last_row[3]])
 
 
-def get_area(width, height):
+def get_area(width: Union[int, float], height: Union[int, float]) -> float:
+    """Get area for bounding box.
+
+    Args:
+        width (Union[int, float]): Bounding box width
+        height (Union[int, float]):Bounding box height
+
+    Returns:
+        float: Area
+    """
     return width * height
 
 
-def get_drift_id(drift_type):
+def get_drift_id(drift_type: str) -> int:
+    """Get drift ID for drift type.
+
+    Args:
+        drift_type (str): Drift type
+
+    Returns:
+        int: Drift ID for drift type
+    """
     try:
         drift_id = cfg.DRIFT_TYPES.index(drift_type) + 1
     except Exception:
@@ -242,7 +339,16 @@ def get_drift_id(drift_type):
     return drift_id
 
 
-def get_segmentation(bbox):
+def get_segmentation(bbox: list) -> list:
+    """Get segmentation values for bounding box. 
+    Not used for training.
+
+    Args:
+        bbox (list): Bounding box
+
+    Returns:
+        list: Segmentation values
+    """
     xmin = bbox[0]
     ymin = bbox[1]
     xmax = bbox[0] + bbox[2]
@@ -254,8 +360,17 @@ def get_segmentation(bbox):
     return list([segmentation])
 
 
-def generate_annotations(drift_info, dir, log_matching, log_names):
+def generate_annotations(drift_info: pd.DataFrame, dir: str,
+                         log_matching: dict, log_names: list):
+    """Generate annotations for WINSIM encoding approach. 
+    Annotations are saved in JSON format.
 
+    Args:
+        drift_info (pd.DataFrame): DataFrame, containing drift information
+        dir (str): Path of data directory
+        log_matching (dicht): Dict, containing matching between log names and images
+        log_names (list): List, containing names of all event logs
+    """
     categories = [
         {"supercategory": "drift", "id": 1, "name": "sudden"},
         {"supercategory": "drift", "id": 2, "name": "gradual"},
@@ -323,20 +438,44 @@ def generate_annotations(drift_info, dir, log_matching, log_names):
         json.dump(anno_file, file)
 
 
-def read_annotations(dir):
+def read_annotations(dir: str) -> Union[list, dict]:
+    """Read annotation file.
+
+    Args:
+        dir (str): Directory, where annotation file is stored.
+
+    Returns:
+        Union[list,dict]: Annotations
+    """
     path = os.path.join(dir, "annotations.json")
     with open(path) as file:
         annotations = json.load(file)
     return annotations
 
 
-def get_drift_info(dir) -> pd.DataFrame:
+def get_drift_info(dir: str) -> pd.DataFrame:
+    """Get drift information.
+
+    Args:
+        dir (str): Directory, where drift information file is stored.
+
+    Returns:
+        pd.DataFrame: Drift information
+    """
     path = os.path.join(dir, "drift_info.csv")
     return pd.read_csv(path)
 
 
-def extract_drift_information(dir) -> pd.DataFrame:
+def extract_drift_information(dir: str) -> pd.DataFrame:
+    """Extract information from drift info file generated by CDLG.
 
+    Args:
+        dir (str): Directory of drift info file
+
+    Returns:
+        pd.DataFrame: DataFrame containing all relevant 
+        information about drifts
+    """
     pd_df = get_drift_info(dir)
 
     indices = pd_df[pd_df["drift_sub_attribute"] == "change_trace_index"]
@@ -365,7 +504,13 @@ def extract_drift_information(dir) -> pd.DataFrame:
     return drift_info
 
 
-def get_ex_decoder():
+def get_ex_decoder() -> Tuple[dict, TfExampleDecoder]:
+    """Get decoders for classes.
+
+    Returns:
+        Tuple[dict, TfExampleDecoder]: Category index for drift types 
+        and TfExampleDecoder
+    """
     category_index = {
         1: {
             'id': 1,
@@ -389,8 +534,15 @@ def get_ex_decoder():
     return category_index, tf_ex_decoder
 
 
-def visualize_batch(path, mode, seed, n_examples=3):
+def visualize_batch(path: str, mode: str, seed: int, n_examples=3):
+    """Visualize bounding boxes for batch of images (groundtruth).
 
+    Args:
+        path (str): Image data path
+        mode (str): Training or validation mode
+        seed (int): Seed for replication
+        n_examples (int, optional): Number of logs to visualize. Defaults to 3.
+    """
     # dynamically create subplots based on n_examples
     columns = 3
     rows = n_examples // columns
@@ -432,8 +584,19 @@ def visualize_batch(path, mode, seed, n_examples=3):
                 bbox_inches="tight")
 
 
-def visualize_predictions(path, mode, model, seed, n_examples=3, threshold=0.50):
+def visualize_predictions(path: str, mode: str, model: tf.keras.Model,
+                          seed: int, n_examples=3, threshold=0.50):
+    """Visualize bounding boxes for batch of images (prediction).
 
+    Args:
+        path (str): Image data path
+        mode (str): Training or validation mode
+        model (tf.keras.Model): TensorFlow model
+        seed (int): Seed for replication
+        n_examples (int, optional): Number of logs to visualize. Defaults to 3.
+        threshold (float, optional): Threshold for prediction confidence. 
+            Defaults to 0.50.
+    """
     # dynamically create subplots based on n_examples
     columns = 3
     rows = n_examples // columns
@@ -494,7 +657,16 @@ def visualize_predictions(path, mode, model, seed, n_examples=3, threshold=0.50)
 
 
 def build_inputs_for_object_detection(image, input_image_size):
-    """Builds Object Detection model inputs for serving."""
+    """Builds Object Detection model inputs for serving.
+    Source: 
+    https://www.tensorflow.org/tfmodels/vision/object_detection#inference_from_trained_model
+    Args:
+        image (Any): Image
+        input_image_size (Any): Target image size for model
+
+    Returns:
+        Any: Processed image
+    """
     image, _ = resize_and_crop_image(
         image,
         input_image_size,
@@ -505,13 +677,26 @@ def build_inputs_for_object_detection(image, input_image_size):
     return image
 
 
-def get_timestamp():
+def get_timestamp() -> str:
+    """Get timestamp for current time.
+
+    Returns:
+        str: Timestamp as string in format "%Y%m%d-%H%M%S"
+    """
     europe = pytz.timezone("Europe/Berlin")
     timestamp = dt.datetime.now(europe).strftime("%Y%m%d-%H%M%S")
     return timestamp
 
 
-def get_model_config(model_dir):
+def get_model_config(model_dir: str) -> ExperimentConfig:
+    """Get configuration for model training.
+
+    Args:
+        model_dir (str): Directory where model should be tracked
+
+    Returns:
+        ExperimentConfig: File, containing hyperparameters for model training
+    """
     exp_config = exp_factory.get_exp_config(cfg.MODEL_SELECTION)
 
     # non adjustable for pretrained model
@@ -599,8 +784,15 @@ def get_model_config(model_dir):
     return exp_config
 
 
-def matrix_to_img(matrix, number, exp_path, mode="color"):
+def matrix_to_img(matrix: np.ndarray, number: int, exp_path: str, mode="color"):
+    """Convert similarity matrix to image and save it. 
 
+    Args:
+        matrix (np.array): Similarity matrx
+        number (int): Image number
+        exp_path (str): Experiment path
+        mode (str, optional): Coloring mode. Defaults to "color".
+    """
     if mode == "color":
         # Get the color map by name:
         cm = plt.get_cmap('viridis')
@@ -642,28 +834,55 @@ def start_tfr_script(repo_dir: str, data_dir: str, tfr_dir: str, prefix: str):
     except subprocess.TimeoutExpired:
         p.kill()
         outs, errs = p.communicate()
-        
-        
+
+
 def load_image(path: str) -> np.ndarray:
+    """Load image into numpy array.
+
+    Args:
+        path (str): Image path
+
+    Returns:
+        np.ndarray: Image as numpy array
+    """
     image = Image.open(path)
     return np.array(image)
 
 
 def datetime_2_str(date: dt.datetime) -> str:
-    return dt.datetime.strftime(date, '%m-%d-%Y')
+    """Convert datetime object to string.
+
+    Args:
+        date (dt.datetime): Datetime object
+
+    Returns:
+        str: String representation of datime object in format "%m-%d-%Y"
+    """
+    return dt.datetime.strftime(date, "%m-%d-%Y")
 
 
 def get_all_numbers_of_traces_per_log():
+    """Get all numbers of traces per event log.
+    """
     files = get_event_log_paths()
     number_per_log = {}
     for name, path in files.items():
-        log = pm.read_xes(os.path.join(path,name), return_legacy_log_object=True)
+        log = pm.read_xes(os.path.join(path, name),
+                          return_legacy_log_object=True)
         number_per_log[name] = len(log)
-    number_of_traces_path = os.path.join(cfg.DEFAULT_DATA_DIR, "number_of_traces.json")
+    number_of_traces_path = os.path.join(
+        cfg.DEFAULT_DATA_DIR, "number_of_traces.json")
     with open(number_of_traces_path, "w", encoding='utf-8') as file:
         json.dump(number_per_log, file)
-        
 
-def get_number_of_traces(event_log):
+
+def get_number_of_traces(event_log: EventLog) -> int:
+    """Get number of traces for event log.
+
+    Args:
+        event_log (EventLog): Event log
+
+    Returns:
+        int: Number of traces
+    """
     return len(event_log)
-        

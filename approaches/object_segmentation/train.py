@@ -7,9 +7,21 @@ import utils.config as cfg
 import utils.utilities as utils
 
 from official.vision.serving import export_saved_model_lib
+from typing import Tuple
 
 
-def train(model_dir=cfg.MODEL_PATH, output_dir=cfg.DEFAULT_OUTPUT_DIR):
+def train(model_dir=cfg.MODEL_PATH, 
+          output_dir=cfg.DEFAULT_OUTPUT_DIR) -> Tuple[tf.keras.Model, dict]:
+    """Main function for training the object detection models.
+
+    Args:
+        model_dir (str, optional): TensorFlow Model path. Defaults to cfg.MODEL_PATH.
+        output_dir (str, optional): Output directory. 
+            Defaults to cfg.DEFAULT_OUTPUT_DIR.
+
+    Returns:
+        Tuple[tf.keras.Model, dict]: TensorFlow model and evaluation logs
+    """
 
     timestamp = utils.get_timestamp()
 
@@ -53,7 +65,6 @@ def train(model_dir=cfg.MODEL_PATH, output_dir=cfg.DEFAULT_OUTPUT_DIR):
         model_dir=model_dir,
         run_post_eval=True)
 
-    # TODO
     save_options = tf.saved_model.SaveOptions(experimental_custom_gradients=True)
 
     export_saved_model_lib.export_inference_graph(

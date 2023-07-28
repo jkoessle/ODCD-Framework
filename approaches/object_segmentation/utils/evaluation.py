@@ -6,15 +6,25 @@ import numpy as np
 
 import datetime as dt
 
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from . import config as cfg
 from . import utilities as utils
 from . import cdrift_evaluation as cdrift
 
 
-def get_evaluation_metrics(y_true: list, y_pred: list, 
+def get_evaluation_metrics(y_true: list, y_pred: list,
                            factor: float, number_of_traces: int) -> dict:
-    
+    """Get all relevant evaluation metrics.
+
+    Args:
+        y_true (list): List of groundtruth values
+        y_pred (list): List of prediction values
+        factor (float): Factor for relative lag
+        number_of_traces (int): Number of traces for event log
+
+    Returns:
+        dict: Dict, containing evaluation measures
+    """
     lag = int(factor * number_of_traces)
 
     tp_fp, assignments = cdrift.getTP_FP(detected=y_pred,
@@ -32,15 +42,44 @@ def get_evaluation_metrics(y_true: list, y_pred: list,
     return metrics
 
 
-def get_precision(tp, fp):
+def get_precision(tp: int, fp: int) -> float:
+    """Get precision.
+
+    Args:
+        tp (int): Number of true positives
+        fp (int): Number of false positives
+
+    Returns:
+        float: Precision
+    """
     return tp / (tp+fp)
 
 
-def get_recall(tp, y_true_size):
+def get_recall(tp: int, y_true_size: int) -> float:
+    """Get recall.
+
+    Args:
+        tp (int): Number of true positives
+        y_true_size (int): Size of true values
+
+    Returns:
+        float: Recall
+    """
     return tp / y_true_size
 
 
-def get_f1_score(tp, fp, y_true_size):
+def get_f1_score(tp: int, fp: int, y_true_size: int) \
+    -> Union[Tuple[float, float, float],Tuple[np.nan, np.nan, np.nan]]:
+    """Get F1-score.
+
+    Args:
+        tp (int): Number of true positives
+        fp (int): Number of false positives
+        y_true_size (int): Size of true values
+
+    Returns:
+        Union[Tuple[float,float,float], Tuple[np.nan, np.nan, np.nan]]: F1-score
+    """
     try:
         precision = get_precision(tp, fp)
         recall = get_recall(tp, y_true_size)
@@ -78,9 +117,16 @@ def get_average_lag(assignments: List[Tuple[int, int]]):
         return np.nan
 
 
-def evaluate(data_dir, model, threshold=0.5):
+def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
+    """Main function for model evaluation. 
+    Saves evaluation results to output path.
 
-    # data = tf.data.TFRecordDataset(eval_dir)
+    Args:
+        data_dir (str): Evaluation data directory
+        model (tf.keras.Model): Model
+        threshold (float, optional): Threshold for prediction confidence. 
+        Defaults to 0.5.
+    """
     input_image_size = cfg.IMAGE_SIZE
     model_fn = model.signatures['serving_default']
 
@@ -102,22 +148,14 @@ def evaluate(data_dir, model, threshold=0.5):
 
     for image_name, image_path in images.items():
 
-        # for i, tfr_tensor in enumerate(data):
-        # decoded_tensor = tf_ex_decoder.decode(tfr_tensor)
-        # image = utils.build_inputs_for_object_detection(
-        #     decoded_tensor['image'], input_image_size)
         path = os.path.join(image_path, image_name)
         image = utils.load_image(path)
         image = utils.build_inputs_for_object_detection(
             image, input_image_size)
         image = tf.expand_dims(image, axis=0)
         image = tf.cast(image, dtype=tf.uint8)
-        # image_np = image[0].numpy()
         result = model_fn(image)
 
-        # result = np.where(result['detection_scores'][0].numpy() > threshold)
-
-        # check if that is correct
         image_id = int(image_name.split(".")[0])
         log_name = log_matching.loc[log_matching["image_id"] == image_id, "log_name"] \
             .iloc[0]
@@ -137,7 +175,6 @@ def evaluate(data_dir, model, threshold=0.5):
         y_pred_category = get_predicted_classes(y_pred, category_index)
 
         if cfg.ENCODING_TYPE == "winsim":
-            # window_info = get_window_info(data_dir)
             bbox_pred = bbox_pred / cfg.TARGETSIZE \
                 * cfg.N_WINDOWS
             log_window_info = window_info[log_name]
@@ -169,7 +206,15 @@ def evaluate(data_dir, model, threshold=0.5):
     save_results(eval_results)
 
 
-def get_image_paths(dir):
+def get_image_paths(dir: str) -> dict:
+    """Get image names and paths in directory.
+
+    Args:
+        dir (str): Image directory
+
+    Returns:
+        dict: Dictionary, containing image names and paths
+    """
     list_of_files = {}
     for dir_path, _, filenames in os.walk(dir):
         for filename in filenames:
@@ -179,7 +224,15 @@ def get_image_paths(dir):
     return list_of_files
 
 
-def get_log_matching(data_dir):
+def get_log_matching(data_dir: str) -> pd.DataFrame:
+    """Load log matching from file.
+
+    Args:
+        data_dir (str): Directory where log matching is stored
+
+    Returns:
+        pd.DataFrame: Log matching
+    """
     log_matching_path = os.path.join(data_dir, "log_matching.csv")
     assert os.path.isfile(log_matching_path), "No log matching file found"
     log_matching = pd.read_csv(log_matching_path, index_col=0)
@@ -187,39 +240,81 @@ def get_log_matching(data_dir):
     return log_matching
 
 
-def get_window_info(data_dir):
+def get_window_info(data_dir: str) -> Union[list, dict]:
+    """Load window info from file.
+
+    Args:
+        data_dir (str): Directory where window info is stored
+
+    Returns:
+        Union[list, dict]: Window info
+    """
     window_info_path = os.path.join(data_dir, "window_info.json")
     assert os.path.isfile(window_info_path), "No window info file found"
     file = open_file(window_info_path)
     return json.load(file)
 
 
-def get_date_info(data_dir):
+def get_date_info(data_dir: str) -> Union[list, dict]:
+    """Load date info from file.
+
+    Args:
+        data_dir (str): Directory where date info is stored
+
+    Returns:
+        Union[list, dict]: Date info
+    """
     date_info_path = os.path.join(data_dir, "date_info.json")
     assert os.path.isfile(date_info_path), "No date info file found"
     file = open_file(date_info_path)
     return json.load(file)
 
 
-def get_first_timestamps_vdd(data_dir):
+def get_first_timestamps_vdd(data_dir: str) -> Union[list, dict]:
+    """Load first timestamps for VDD from file.
+
+    Args:
+        data_dir (str): Directory where first timestamps info is stored
+
+    Returns:
+        Union[list, dict]: First timestamps info
+    """
     first_timestamps_path = os.path.join(data_dir, "first_timestamps.json")
     assert os.path.isfile(first_timestamps_path), "No timestamps file found"
     file = open_file(first_timestamps_path)
     return json.load(file)
 
 
-def get_traces_per_log(data_dir):
+def get_traces_per_log(data_dir: str) -> Union[list, dict]:
+    """Load traces per log from file.
+
+
+    Args:
+        data_dir (str): Directory where traces per log info is stored
+
+    Returns:
+        Union[list, dict]: Number of traces per log
+    """
     number_of_traces_path = os.path.join(data_dir, "number_of_traces.json")
-    assert os.path.isfile(number_of_traces_path), "No number of traces file found"
+    assert os.path.isfile(
+        number_of_traces_path), "No number of traces file found"
     file = open_file(number_of_traces_path)
     return json.load(file)
 
 
-def open_file(path):
+def open_file(path: str):
     return open(path)
 
 
-def get_drift_info(data_dir):
+def get_drift_info(data_dir: str) -> pd.DataFrame:
+    """Load drift info from file.
+
+    Args:
+        data_dir (str): Directory where drift info is stored
+
+    Returns:
+        pd.DataFrame: Drift info
+    """
     drift_info_path = os.path.join(data_dir, "drift_info.csv")
     assert os.path.isfile(drift_info_path), "No drift info file found"
     return pd.read_csv(drift_info_path)
@@ -229,7 +324,18 @@ def close_file(file):
     file.close()
 
 
-def get_changepoints_timestamp_winsim(bboxes, y_pred, window_info) -> list:
+def get_changepoints_timestamp_winsim(bboxes: list, y_pred: list,
+                                      window_info: dict) -> list:
+    """Get changepoints as timestamps for WINSIM encoding.
+
+    Args:
+        bboxes (list): List of bboxes
+        y_pred (list): List of predictions
+        window_info (dict): Window info
+
+    Returns:
+        list: List of changepoints as timestamps
+    """
     change_points = []
     for i, bbox in enumerate(bboxes):
         if y_pred[i] == "sudden":
@@ -245,7 +351,18 @@ def get_changepoints_timestamp_winsim(bboxes, y_pred, window_info) -> list:
     return change_points
 
 
-def get_changepoints_trace_idx_winsim(bboxes, y_pred, window_info) -> List[tuple]:
+def get_changepoints_trace_idx_winsim(bboxes: list, y_pred: list,
+                                      window_info: dict) -> List[tuple]:
+    """Get changepoints as trace indices for WINSIM encoding. 
+
+    Args:
+        bboxes (list): List of bboxes
+        y_pred (list): List of predictions
+        window_info (dict): Window info
+
+    Returns:
+        List[tuple]: List of changepoints as trace indices
+    """
     change_points = []
     for i, bbox in enumerate(bboxes):
         if y_pred[i] == "sudden":
@@ -264,8 +381,22 @@ def get_changepoints_trace_idx_winsim(bboxes, y_pred, window_info) -> List[tuple
     return change_points
 
 
-def get_changepoints_timestamp_vdd(bboxes, y_pred,
+def get_changepoints_timestamp_vdd(bboxes: list, y_pred: list,
                                    min_date: dt.date, max_date: dt.date) -> list:
+    """Get changepoints as timestamps for VDD encoding. 
+    Changepoint is equal to the shift of the relative position starting from the 
+    min-date. The time delta is calculated from the relative position, 
+    since the x-axis represents the time period.
+
+    Args:
+        bboxes (list): List of bboxes
+        y_pred (list): List of predictions
+        min_date (dt.date): Minimum date in event log
+        max_date (dt.date): Maximum date in event log
+
+    Returns:
+        list: List of changepoints as timestamps
+    """
     change_points = []
     day_delta = max_date - min_date
     for i, bbox in enumerate(bboxes):
@@ -280,8 +411,25 @@ def get_changepoints_timestamp_vdd(bboxes, y_pred,
     return change_points
 
 
-def get_changepoints_trace_idx_vdd(bboxes, y_pred, timestamps_per_trace: dict,
+def get_changepoints_trace_idx_vdd(bboxes: list, y_pred: list,
+                                   timestamps_per_trace: dict,
                                    min_date: dt.date, max_date: dt.date) -> List[tuple]:
+    """Get changepoints as trace indices for VDD encoding. 
+    Changepoint is equal to the shift of the relative position starting from the 
+    min-date. The time delta is calculated from the relative position, 
+    since the x-axis represents the time period. The trace index searched for is the 
+    trace index whose timestamp is closest to the calculated timestamp.
+
+    Args:
+        bboxes (list): List of bboxes
+        y_pred (list): List of predictions
+        timestamps_per_trace (dict): First timestamp for each trace of event log
+        min_date (dt.date): Minimum date in event log
+        max_date (dt.date): Maximum date in event log
+
+    Returns:
+        List[tuple]: List of changepoints as trace indices
+    """
     change_points = []
     day_delta = max_date - min_date
     for i, bbox in enumerate(bboxes):
@@ -312,10 +460,27 @@ def get_changepoints_trace_idx_vdd(bboxes, y_pred, timestamps_per_trace: dict,
 
 
 def get_log_info(log_name: str, drift_info: pd.DataFrame) -> pd.DataFrame:
+    """Get drift info for event log.
+
+    Args:
+        log_name (str): Name of event log
+        drift_info (pd.DataFrame): Drift info
+
+    Returns:
+        pd.DataFrame: DataFrame, containing drift info for event log
+    """
     return drift_info.loc[drift_info["log_name"] == log_name]
 
 
 def get_true_changepoints_timestamp(log_info: pd.DataFrame) -> list:
+    """Get true changepoints as timestamps.
+
+    Args:
+        log_info (pd.DataFrame): Drift info for event log
+
+    Returns:
+        list: List of true changepoints as timestamps
+    """
     change_points_datetime = pd.unique(log_info["change_start"])
     change_points_date = [dt.datetime.strptime(datetime, "%y-%m-%d").date()
                           for datetime in change_points_datetime]
@@ -323,6 +488,14 @@ def get_true_changepoints_timestamp(log_info: pd.DataFrame) -> list:
 
 
 def get_true_changepoints_trace_idx(log_info: pd.DataFrame) -> list:
+    """Get true changepoints as trace indices.
+
+    Args:
+        log_info (pd.DataFrame): Drift info for event log
+
+    Returns:
+        list: List of true changepoints as trace indices
+    """
     drift_ids = pd.unique(log_info["drift_or_noise_id"])
     change_points_trace_idx = []
     for drift_id in drift_ids:
@@ -341,6 +514,14 @@ def get_true_changepoints_trace_idx(log_info: pd.DataFrame) -> list:
 
 
 def get_true_classes(log_info: pd.DataFrame) -> list:
+    """Get true drift types.
+
+    Args:
+        log_info (pd.DataFrame): Drift info for event log
+
+    Returns:
+        list: List of true drift types
+    """
     drift_ids = pd.unique(log_info["drift_or_noise_id"])
     drift_types = []
     for drift_id in drift_ids:
@@ -350,10 +531,18 @@ def get_true_classes(log_info: pd.DataFrame) -> list:
     return drift_types
 
 
-def get_predicted_classes(y_pred, category_index: dict) -> list:
+def get_predicted_classes(y_pred: list, category_index: dict) -> list:
+    """Get predicted drift types.
+
+    Args:
+        y_pred (list): List of prediction values
+        category_index (dict): Mapping of drift types to drift IDs
+
+    Returns:
+        list: List of predicted drift types
+    """
     y_pred_category = []
     for y in y_pred:
-        # y_pred_str.append(category_index[y]["name"])
         y_pred_category.append(category_index.get(y, {}).get("name"))
     return y_pred_category
 
@@ -377,6 +566,14 @@ def get_day_threshold(min_date: dt.date, max_date: dt.date, day_lag=0.01) -> int
 
 
 def get_sudden_changepoint_winsim(xmin: int) -> int:
+    """Get changepoint for sudden drifts in WINSIM encoding. 
+
+    Args:
+        xmin (int): Xmin of predicted bounding box
+
+    Returns:
+        int: Trace ID
+    """
     if cfg.RESIZE_SUDDEN_BBOX:
         if xmin == 0:
             changepoint = int(cfg.RESIZE_VALUE / 2)
@@ -393,6 +590,14 @@ def get_sudden_changepoint_winsim(xmin: int) -> int:
 
 
 def get_sudden_changepoint_vdd(xmin: int) -> int:
+    """Get changepoint for sudden drifts in VDD encoding. 
+
+    Args:
+        xmin (int): Xmin of predicted bounding box
+
+    Returns:
+        int: Trace ID
+    """
     factor = 0.02 * cfg.TARGETSIZE
 
     changepoint = int(xmin + factor)
@@ -413,6 +618,15 @@ def get_sudden_changepoint_vdd(xmin: int) -> int:
 
 def get_closest_trace_index(drift_moment_date: dt.date,
                             timetamps_per_trace: dict) -> int:
+    """Determines the trace ID closest to timestamp.
+
+    Args:
+        drift_moment_date (dt.date): Predicted drift moment
+        timetamps_per_trace (dict): First timestamp per trace of event log
+
+    Returns:
+        int: Trace ID
+    """
     timestamps_df = pd.DataFrame.from_dict(timetamps_per_trace,
                                            orient="index",
                                            columns=["timestamp"])
@@ -421,24 +635,37 @@ def get_closest_trace_index(drift_moment_date: dt.date,
         dt.datetime.strptime(_, "%m-%d-%Y").date())
 
     index = timestamps_df.loc[timestamps_df["timestamp"] ==
-                              nearest(timestamps_df["timestamp"].to_list(), 
+                              nearest(timestamps_df["timestamp"].to_list(),
                                       drift_moment_date)].index[0]
 
     return int(timestamps_df.iloc[index]["trace_id"])
 
 
 def save_results(results: dict):
+    """Saves evaluation results to output path.
+
+    Args:
+        results (dict): Evaluation measures
+    """
     results_df = pd.DataFrame.from_dict(results, orient="index")
     save_path = os.path.join(cfg.TRAINED_MODEL_PATH, "evaluation_results.csv")
     results_df.to_csv(save_path, sep=",")
 
 
-def str_2_date(date: str):
+def str_2_date(date: str) -> dt.date:
+    """Convert string to date object.
+
+    Args:
+        date (str): String of format "%m-%d-%Y"
+
+    Returns:
+        dt.date: Date object of format "%m-%d-%Y"
+    """
     return dt.datetime.strptime(date, "%m-%d-%Y").date()
 
 
 def nearest(items: list, pivot):
-    """Return nearest item from list
+    """Return nearest item from list.
     Source:
     https://stackoverflow.com/questions/32237862/find-the-closest-date-to-a-given-date
     Args:
