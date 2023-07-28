@@ -72,12 +72,12 @@ def get_nested_log_information(log: EventLog) -> tuple[dict, dict]:
     #TODO: workaround - CDLG currently only supports noise info for logs without drift
     try:
         drift_info = log.attributes["drift:info"]["children"]
-        noise_info = log.attributes["noise:info"]["children"]
+        # noise_info = log.attributes["noise:info"]["children"]
     except Exception:
         drift_info = {"drift_type": "no-drift"}
-        noise_info = log.attributes["noise:info"]["children"]
+        # noise_info = log.attributes["noise:info"]["children"]
 
-    return noise_info, drift_info
+    return drift_info
 
 
 @deprecated(version='0.1', reason="This function was for a previous version of CDLG")
