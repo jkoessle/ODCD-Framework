@@ -2937,6 +2937,25 @@ files = [
 widechars = ["wcwidth"]
 
 [[package]]
+name = "tbparse"
+version = "0.0.7"
+description = "Load tensorboard event logs as pandas DataFrames; Read, parse, and plot tensorboard event logs with ease!"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "tbparse-0.0.7-py3-none-any.whl", hash = "sha256:f9a140f45b8ff00158fd406aba0b3b56a46793d6ea65db346e8d80db0e4fb90d"},
+    {file = "tbparse-0.0.7.tar.gz", hash = "sha256:0ddd3c764ceb1859bc0cb69ca355bff4fd5936c4bfe885e252e481564b2371a9"},
+]
+
+[package.dependencies]
+pandas = ">=1.3.0"
+tensorboard = ">=2.0.0"
+
+[package.extras]
+testing = ["flake8", "mypy", "nbsphinx", "pylint", "pytest", "pytest-cov", "seaborn", "soundfile", "sphinx", "sphinx-rtd-theme", "sphinx-tabs", "tensorboardX", "torch"]
+
+[[package]]
 name = "tensorboard"
 version = "2.10.1"
 description = "TensorBoard lets you watch Tensors Flow"
@@ -3755,4 +3774,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.10"
-content-hash = "4970585d11334c41d9500d7cda9f316cafc7272981a9ffdb26f0f2550a564228"
+content-hash = "8920b807d0f0ec6cd969a22ef888fbdda96a38417295553a8c7b3a5a5069459e"
