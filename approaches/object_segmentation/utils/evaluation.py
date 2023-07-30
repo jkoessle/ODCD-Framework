@@ -13,6 +13,7 @@ from . import cdrift_evaluation as cdrift
 
 
 def get_evaluation_metrics(y_true: list, y_pred: list,
+                           y_true_label: list, y_pred_label:list,
                            factor: float, number_of_traces: int) -> dict:
     """Get all relevant evaluation metrics.
 
@@ -27,19 +28,48 @@ def get_evaluation_metrics(y_true: list, y_pred: list,
     """
     lag = int(factor * number_of_traces)
 
-    tp_fp, assignments = cdrift.getTP_FP(detected=y_pred,
+    _, assignments = cdrift.getTP_FP(detected=y_pred,
                                          known=y_true,
                                          lag=lag)
-    tp, fp = tp_fp
+    
+    matched_assignments = match_labels(assignments, y_true, y_true_label, 
+                                       y_pred, y_pred_label)
+    
+    tp = len(matched_assignments)
+    fp = len(y_pred) - tp
 
     f1, precision, recall = get_f1_score(tp, fp, len(y_true))
-    average_lag = get_average_lag(assignments)
+    average_lag = get_average_lag(matched_assignments)
 
     metrics = {"f1": f1,
                "precision": precision,
                "recall": recall,
                "lag": average_lag}
     return metrics
+
+
+def match_labels(assignments: list, y_true: list, y_true_labels: list, 
+                 y_pred: list, y_pred_labels: list) -> list:
+    """Match predicted label with actual label. 
+    If predicted label is not equal to actual label, 
+    remove prediction from assignments.
+    In other words: prediction becomes a false positive.
+
+    Args:
+        assignments (list): Assignments from CDrift evaluation
+        y_true (list): Actual changepoints
+        y_true_labels (list): Actual labels
+        y_pred (list): Predicted changepoints
+        y_pred_labels (list): Predicted labels
+
+    Returns:
+        list: Label-matched assignments
+    """
+    for assignment in assignments:
+        pred, true = assignment
+        if y_pred_labels[y_pred.index(pred)] != y_true_labels[y_true.index(true)]:
+            assignments.remove(assignment)
+    return assignments
 
 
 def get_precision(tp: int, fp: int) -> float:
@@ -68,8 +98,7 @@ def get_recall(tp: int, y_true_size: int) -> float:
     return tp / y_true_size
 
 
-def get_f1_score(tp: int, fp: int, y_true_size: int) \
-    -> Union[Tuple[float, float, float],Tuple[np.nan, np.nan, np.nan]]:
+def get_f1_score(tp: int, fp: int, y_true_size: int) -> Tuple[float, float, float]:
     """Get F1-score.
 
     Args:

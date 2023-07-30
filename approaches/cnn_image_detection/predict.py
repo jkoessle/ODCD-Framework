@@ -10,7 +10,7 @@ from utils.evaluate import plot_multilabel_confusion_matrix
 def predict(model, out_path):
 
     if cfg.MULTILABEL:
-        test_ds = create_multilabel_dataset(cfg.TEST_DATA_DIR)
+        test_ds = create_multilabel_dataset(cfg.TEST_DATA_DIR, training=False)
         logits = model.predict(test_ds, verbose=2)
         
         labels = cfg.DRIFT_TYPES
