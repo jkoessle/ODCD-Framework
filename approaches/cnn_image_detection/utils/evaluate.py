@@ -43,9 +43,10 @@ def plot_classification_report(y_true, y_pred, labels_idx, labels, path):
 
     # exclude support from clf report with iloc
     clf_r = sns.heatmap(pd.DataFrame(
-        c_r).iloc[:-1, :].T, cmap="YlGn", annot=True)
+        c_r).iloc[:-1, :].T, cmap="YlGn", annot=True, cbar=False)
     clf_r_fig = clf_r.get_figure()
     save_path = os.path.join(path, "classification_report.png")
+    clf_r_fig.tight_layout()
     clf_r_fig.savefig(save_path)
     print(f"Classification report is saved at: {save_path}")
 
@@ -80,11 +81,12 @@ def plot_multilabel_confusion_matrix(y_true, y_pred, labels_idx, labels, path):
     # render plot dynamically
     fig = plt.figure()
     for i in range(n_subplots):
-        disp = ConfusionMatrixDisplay(m_cm[i], display_labels=labels)
+        disp = ConfusionMatrixDisplay(m_cm[i])
         ax = fig.add_subplot(rows, cols, pos[i])
-        ax.set_title(f"Confusion Matrix for Class '{labels[i]}'")
+        ax.set_title(f"Class '{labels[i]}'")
         disp.plot(cmap="YlGn", ax=ax, colorbar=False)
     fig.tight_layout()
     save_path = os.path.join(path, "multilabel_confusion_matrix.png")
     plt.savefig(save_path, bbox_inches='tight')
     print(f"Confusion matrix is saved at: {save_path}")
+    plt.close()

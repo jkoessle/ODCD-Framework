@@ -11,6 +11,7 @@ import pm4py as pm
 from . import config as cfg
 
 from PIL import Image
+from tqdm import tqdm
 from official.vision.dataloaders.tf_example_decoder import TfExampleDecoder
 from official.vision.utils.object_detection import visualization_utils
 from official.core import exp_factory
@@ -866,12 +867,13 @@ def get_all_numbers_of_traces_per_log():
     """
     files = get_event_log_paths()
     number_per_log = {}
-    for name, path in files.items():
+    for name, path in tqdm(files.items(), desc="Counting Traces from Event Logs",
+                           unit="Event Log"):
         log = pm.read_xes(os.path.join(path, name),
                           return_legacy_log_object=True)
         number_per_log[name] = len(log)
     number_of_traces_path = os.path.join(
-        cfg.DEFAULT_DATA_DIR, "number_of_traces.json")
+        cfg.TEST_IMAGE_DATA_DIR, "number_of_traces.json")
     with open(number_of_traces_path, "w", encoding='utf-8') as file:
         json.dump(number_per_log, file)
 
