@@ -3,10 +3,11 @@ import json
 import pandas as pd
 import tensorflow as tf
 import numpy as np
-
 import datetime as dt
 
+from tqdm import tqdm
 from typing import List, Tuple, Union
+from collections import Counter
 from . import config as cfg
 from . import utilities as utils
 from . import cdrift_evaluation as cdrift
@@ -169,13 +170,14 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
     date_info = get_date_info(data_dir)
     traces_per_log = get_traces_per_log(data_dir)
 
-    category_index, tf_ex_decoder = utils.get_ex_decoder()
+    category_index, _ = utils.get_ex_decoder()
 
     eval_results = {}
-
+    
     images = get_image_paths(data_dir)
 
-    for image_name, image_path in images.items():
+    for image_name, image_path in tqdm(images.items(), 
+                                       desc="Evaluating model", unit="images"):
 
         path = os.path.join(image_path, image_name)
         image = utils.load_image(path)
@@ -219,6 +221,8 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
 
         metrics = get_evaluation_metrics(y_true=true_change_points,
                                          y_pred=pred_change_points,
+                                         y_true_label=y_true_category,
+                                         y_pred_label=y_pred_category,
                                          factor=cfg.RELATIVE_LAG,
                                          number_of_traces=traces_per_log[log_name])
 
@@ -233,6 +237,7 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
                                   }
 
     save_results(eval_results)
+    print_results(eval_results, traces_per_log)
 
 
 def get_image_paths(dir: str) -> dict:
@@ -393,21 +398,24 @@ def get_changepoints_trace_idx_winsim(bboxes: list, y_pred: list,
         List[tuple]: List of changepoints as trace indices
     """
     change_points = []
-    for i, bbox in enumerate(bboxes):
-        if y_pred[i] == "sudden":
-            # changepoint is equal to the date of the first trace in the middle
-            # window of bbox
-            change_point = get_sudden_changepoint_winsim(int(bbox[0]))
-            change_point_trace_id = (int(window_info[str(change_point)][0]),
-                                     int(window_info[str(change_point)][0]))
-        else:
-            # change start and end is equal to the date of the first trace in window
-            change_start = int(bbox[0])
-            change_end = int(bbox[0] + bbox[2])
-            change_point_trace_id = (int(window_info[str(change_start)][0]),
-                                     int(window_info[str(change_end)][0]))
-        change_points.append(change_point_trace_id)
-    return change_points
+    if len(bboxes) == 0:
+        return change_points
+    else:
+        for i, bbox in enumerate(bboxes):
+            if y_pred[i] == "sudden":
+                # changepoint is equal to the date of the first trace in the middle
+                # window of bbox
+                change_point = get_sudden_changepoint_winsim(round(bbox[0]))
+                change_point_trace_id = (int(window_info[str(change_point)][0]),
+                                        int(window_info[str(change_point)][0]))
+            else:
+                # change start and end is equal to the date of the first trace in window
+                change_start = round(bbox[0])
+                change_end = round(bbox[2])
+                change_point_trace_id = (int(window_info[str(change_start)][0]),
+                                        int(window_info[str(change_end)][0]))
+            change_points.append(change_point_trace_id)
+        return change_points
 
 
 def get_changepoints_timestamp_vdd(bboxes: list, y_pred: list,
@@ -460,32 +468,35 @@ def get_changepoints_trace_idx_vdd(bboxes: list, y_pred: list,
         List[tuple]: List of changepoints as trace indices
     """
     change_points = []
-    day_delta = max_date - min_date
-    for i, bbox in enumerate(bboxes):
-        if y_pred[i] == "sudden":
-            xmin = get_sudden_changepoint_vdd(int(bbox[0]))
-            relative_xmin = xmin / cfg.TARGETSIZE
-            change_point_date = min_date + dt.timedelta(days=int(day_delta.days *
-                                                                 relative_xmin))
-            closest_trace = get_closest_trace_index(change_point_date,
-                                                    timestamps_per_trace)
-            change_point_index = (closest_trace, closest_trace)
-        else:
-            xmin = bbox[0]
-            xmax = bbox[0] + bbox[2]
-            relative_xmin = xmin / cfg.TARGETSIZE
-            relative_xmax = xmax / cfg.TARGETSIZE
-            change_start_date = min_date + dt.timedelta(days=int(day_delta.days *
-                                                                 relative_xmin))
-            change_end_date = min_date + dt.timedelta(days=int(day_delta.days *
-                                                               relative_xmax))
-            change_start_index = get_closest_trace_index(change_start_date,
-                                                         timestamps_per_trace)
-            change_end_index = get_closest_trace_index(change_end_date,
-                                                       timestamps_per_trace)
-            change_point_index = (change_start_index, change_end_index)
-        change_points.append(change_point_index)
-    return change_points
+    if len(bboxes) == 0:
+        return change_points
+    else:
+        day_delta = max_date - min_date
+        for i, bbox in enumerate(bboxes):
+            if y_pred[i] == "sudden":
+                xmin = get_sudden_changepoint_vdd(int(bbox[0]))
+                relative_xmin = xmin / cfg.TARGETSIZE
+                change_point_date = min_date + dt.timedelta(days=int(day_delta.days *
+                                                                    relative_xmin))
+                closest_trace = get_closest_trace_index(change_point_date,
+                                                        timestamps_per_trace)
+                change_point_index = (closest_trace, closest_trace)
+            else:
+                xmin = bbox[0]
+                xmax = bbox[2]
+                relative_xmin = xmin / cfg.TARGETSIZE
+                relative_xmax = xmax / cfg.TARGETSIZE
+                change_start_date = min_date + dt.timedelta(days=int(day_delta.days *
+                                                                    relative_xmin))
+                change_end_date = min_date + dt.timedelta(days=int(day_delta.days *
+                                                                relative_xmax))
+                change_start_index = get_closest_trace_index(change_start_date,
+                                                            timestamps_per_trace)
+                change_end_index = get_closest_trace_index(change_end_date,
+                                                        timestamps_per_trace)
+                change_point_index = (change_start_index, change_end_index)
+            change_points.append(change_point_index)
+        return change_points
 
 
 def get_log_info(log_name: str, drift_info: pd.DataFrame) -> pd.DataFrame:
@@ -538,7 +549,7 @@ def get_true_changepoints_trace_idx(log_info: pd.DataFrame) -> list:
         else:
             trace_id = drift.iloc[0]["drift_traces_index"]
             trace_id = utils.special_string_2_list(trace_id)
-            change_points_trace_idx.append((trace_id[0], trace_id[0]))
+            change_points_trace_idx.append((trace_id[0], trace_id[-1]))
     return change_points_trace_idx
 
 
@@ -705,3 +716,44 @@ def nearest(items: list, pivot):
         any: Element that is closest to pivot
     """
     return min([i for i in items if i <= pivot], key=lambda x: abs(x - pivot))
+
+
+def print_results(results: dict, num_traces: dict):
+    num_events = len(results.keys())
+    # results_summary = {}
+    # for key, subdict in results.items():
+    #     for k, v in subdict.items():
+    #         results_summary[k] = results_summary.get(k, 0) + v
+
+    counter = sum(map(Counter, results.values()), Counter())
+    counter_dict = dict(counter)
+
+    total_average_f1 = counter_dict["f1"] / num_events
+    total_average_lag = counter_dict["average_lag"] / num_events
+    average_length = sum(num_traces.values()) / num_events
+    
+    text_path = os.path.join(cfg.TRAINED_MODEL_PATH, "evaluation_report.txt")
+
+    with open(text_path, "w") as f:
+        f.write(
+            "---------------------------------------------------------------------\n")
+        f.write("\n")
+        f.write("EVALUATION REPORT:")
+        f.write("\n")
+        f.write(
+            "---------------------------------------------------------------------\n")
+        f.write(f"In total {num_events} were evaluated, with an average trace length of\
+                {average_length}\n")
+        f.write("\n")
+        f.write(
+            "---------------------------------------------------------------------\n")
+        f.write("\n")
+        f.write(
+            f"The average f1 score for all evaluated logs is: {total_average_f1}.\n")
+        f.write(
+            "---------------------------------------------------------------------\n")
+        f.write("\n")
+        f.write(
+            f"The average lag for all evaluated logs is: {total_average_lag}.\n")
+        f.write(
+            "---------------------------------------------------------------------\n")

@@ -1,3 +1,4 @@
+import os
 import random
 import tensorflow as tf
 
@@ -25,6 +26,8 @@ def visualize_bboxes(model: tf.keras.Model):
 
 
 if __name__ == "__main__":
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
     model = tf.saved_model.load(cfg.TRAINED_MODEL_PATH)
     visualize_bboxes(model)
 
