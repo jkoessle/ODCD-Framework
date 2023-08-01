@@ -7,7 +7,6 @@ import datetime as dt
 
 from tqdm import tqdm
 from typing import List, Tuple, Union
-from collections import Counter
 from . import config as cfg
 from . import utilities as utils
 from . import cdrift_evaluation as cdrift
@@ -173,10 +172,11 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
     category_index, _ = utils.get_ex_decoder()
 
     eval_results = {}
-    
+    measures = {}
+
     images = get_image_paths(data_dir)
 
-    for image_name, image_path in tqdm(images.items(), 
+    for image_name, image_path in tqdm(images.items(),
                                        desc="Evaluating model", unit="images"):
 
         path = os.path.join(image_path, image_name)
@@ -236,8 +236,13 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
                                   "Average Lag": metrics["lag"]
                                   }
 
-    save_results(eval_results)
-    print_results(eval_results, traces_per_log)
+        measures[log_name] = {"F1-Score": metrics["f1"],
+                              "Precision": metrics["precision"],
+                              "Recall": metrics["recall"],
+                              "Average Lag": metrics["lag"]}
+
+    results_df = save_results(eval_results)
+    print_measures(results_df, traces_per_log)
 
 
 def get_image_paths(dir: str) -> dict:
@@ -686,10 +691,14 @@ def save_results(results: dict):
 
     Args:
         results (dict): Evaluation measures
+    
+    Returns:
+        pd.DataFrame: DataFrame, containing evaluation measures
     """
     results_df = pd.DataFrame.from_dict(results, orient="index")
     save_path = os.path.join(cfg.TRAINED_MODEL_PATH, "evaluation_results.csv")
     results_df.to_csv(save_path, sep=",")
+    return results_df
 
 
 def str_2_date(date: str) -> dt.date:
@@ -718,19 +727,22 @@ def nearest(items: list, pivot):
     return min([i for i in items if i <= pivot], key=lambda x: abs(x - pivot))
 
 
-def print_results(results: dict, num_traces: dict):
-    num_events = len(results.keys())
-    # results_summary = {}
-    # for key, subdict in results.items():
-    #     for k, v in subdict.items():
-    #         results_summary[k] = results_summary.get(k, 0) + v
+def print_measures(results: pd.DataFrame, num_traces: dict):
+    """Generate evaluation measure overview. 
+    Calculates total average F1-score and total average lag.
 
-    counter = sum(map(Counter, results.values()), Counter())
-    counter_dict = dict(counter)
+    Args:
+        results (pd.DataFrame): Evaluation results
+        num_traces (dict): Number of traces per log
+    """
+    num_events = len(num_traces.keys())
+    
+    f1_values = np.nansum(results["F1-Score"])
+    lag_values = np.nansum(results["Average Lag"])
 
-    total_average_f1 = counter_dict["f1"] / num_events
-    total_average_lag = counter_dict["average_lag"] / num_events
-    average_length = sum(num_traces.values()) / num_events
+    total_average_f1 = f1_values / num_events
+    total_average_lag = lag_values / num_events
+    average_length = int(sum(num_traces.values()) / num_events)
     
     text_path = os.path.join(cfg.TRAINED_MODEL_PATH, "evaluation_report.txt")
 
