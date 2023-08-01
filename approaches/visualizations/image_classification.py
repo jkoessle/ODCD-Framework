@@ -56,60 +56,142 @@ def plot_figures(tb_logs: pd.DataFrame, output_dir: str):
     sns.lineplot(data=loss_data, x="step", y="loss",
                  hue=loss_data["model"]).set_title("loss")
     plt.savefig(os.path.join(output_dir, "model_comparison.png"))
-    
-    
-def get_binary_accuracy_data_per_run(tb_logs: pd.DataFrame):
+
+
+def get_binary_accuracy_data_per_run(tb_logs: pd.DataFrame) -> pd.DataFrame:
+    """Get binary accuracy data per run.
+
+    Args:
+        tb_logs (pd.DataFrame): Tensorboard logs
+
+    Returns:
+        pd.DataFrame: Tensorboard logs filtered on accuracy data 
+    """
     filter = "epoch_binary_accuracy"
     tb_logs = utils.filter_on_tag(tb_logs, filter)
-    tb_logs = tb_logs.rename(columns={"value":"binary_accuracy"})
+    tb_logs = tb_logs.rename(columns={"value": "binary_accuracy"})
     return tb_logs
 
 
-def get_loss_data_per_run(tb_logs: pd.DataFrame):
+def get_loss_data_per_run(tb_logs: pd.DataFrame) -> pd.DataFrame:
+    """Get loss data per run.
+
+    Args:
+        tb_logs (pd.DataFrame): Tensorboard logs
+
+    Returns:
+        pd.DataFrame: Tensorboard logs filtered on loss data 
+    """
     filter = "epoch_loss"
     tb_logs = utils.filter_on_tag(tb_logs, filter)
-    tb_logs = tb_logs.rename(columns={"value":"loss"})
+    tb_logs = tb_logs.rename(columns={"value": "loss"})
     return tb_logs
-    
-    
-def get_maximum_per_run(tb_logs: pd.DataFrame):
+
+
+def get_maximum_per_run(tb_logs: pd.DataFrame) -> pd.DataFrame:
+    """Get maximum accuracy per run.
+
+    Args:
+        tb_logs (pd.DataFrame): Tensorboard logs
+
+    Returns:
+        pd.DataFrame: Tensorboard logs grouped by maximum accuracy per run 
+    """
     tb_logs = get_binary_accuracy_data_per_run(tb_logs)
-    return tb_logs[["dir_name","binary_accuracy"]].groupby("dir_name").transform("max")
+    return tb_logs[["dir_name", "binary_accuracy"]].groupby("dir_name").transform("max")
 
 
-def get_maximum_average(tb_logs: pd.DataFrame):
+def get_maximum_average(tb_logs: pd.DataFrame) -> pd.DataFrame:
+    """Get average maximum accuracy per model.
+    Args:
+        tb_logs (pd.DataFrame): Tensorboard logs
+
+    Returns:
+        pd.DataFrame: Tensorboard logs grouped by average maximum of accuracy per model 
+    """
     tb_logs = get_binary_accuracy_data(tb_logs)
-    return tb_logs[["model","maximums"]].groupby("model").mean()
+    return tb_logs[["model", "maximums"]].groupby("model").mean()
 
-def get_minimal_loss_per_run(tb_logs: pd.DataFrame):
+
+def get_minimal_loss_per_run(tb_logs: pd.DataFrame) -> pd.DataFrame:
+    """Get minimal loss per run.
+
+    Args:
+        tb_logs (pd.DataFrame): Tensorboard logs
+
+    Returns:
+        pd.DataFrame: Tensorboard logs grouped by minimal loss per run 
+    """
     tb_logs = get_loss_data_per_run(tb_logs)
-    return tb_logs[["dir_name","loss"]].groupby(["dir_name"]).transform("min")
+    return tb_logs[["dir_name", "loss"]].groupby(["dir_name"]).transform("min")
 
 
-def get_minimal_loss_average(tb_logs: pd.DataFrame):
+def get_minimal_loss_average(tb_logs: pd.DataFrame) -> pd.DataFrame:
+    """Get average minimal loss per model.
+    Args:
+        tb_logs (pd.DataFrame): Tensorboard logs
+
+    Returns:
+        pd.DataFrame: Tensorboard logs grouped by average loss per model 
+    """
     tb_logs = get_loss_data(tb_logs)
-    return tb_logs[["model","minimals"]].groupby(["model"]).mean()
-    
-    
+    return tb_logs[["model", "minimals"]].groupby(["model"]).mean()
+
+
 def convert_wall_time(wall_time: float) -> datetime:
+    """Convert wall timestamp to datetime.
+
+    Args:
+        wall_time (float): Timestamp
+
+    Returns:
+        datetime: Datetime object
+    """
     return datetime.fromtimestamp(wall_time)
-    
+
 
 def wall_time_2_datetime(tb_logs: pd.DataFrame) -> pd.DataFrame:
-    tb_logs["wall_time"] = tb_logs["wall_time"].map(lambda x: convert_wall_time(x))
+    """Convert DataFrame column containing wall times to datetime format.
+
+    Args:
+        tb_logs (pd.DataFrame): Tensorboard logs
+
+    Returns:
+        pd.DataFrame: DataFrame
+    """
+    tb_logs["wall_time"] = tb_logs["wall_time"].map(
+        lambda x: convert_wall_time(x))
     return tb_logs
 
 
 def convert_to_relative_time(tb_logs: pd.DataFrame) -> pd.DataFrame:
-    start = tb_logs[["wall_time","dir_name"]].groupby(["dir_name"]).transform('min')
-    end = tb_logs[["wall_time","dir_name"]].groupby(["dir_name"]).transform('max')
+    """Convert timestamps to relative time.
+
+    Args:
+        tb_logs (pd.DataFrame): Tensorboard logs
+
+    Returns:
+        pd.DataFrame: DataFrame converted to relative time
+    """
+    start = tb_logs[["wall_time", "dir_name"]].groupby(
+        ["dir_name"]).transform('min')
+    end = tb_logs[["wall_time", "dir_name"]].groupby(
+        ["dir_name"]).transform('max')
     tb_logs["time_delta"] = end["wall_time"] - start["wall_time"]
     return tb_logs
 
 
-def get_average_time(tb_logs: pd.DataFrame):
+def get_average_time(tb_logs: pd.DataFrame) -> pd.DataFrame:
+    """Get average relative time per model.
+
+    Args:
+        tb_logs (pd.DataFrame): Tensorboard logs
+
+    Returns:
+        pd.DataFrame: DataFrame with average relative time per model
+    """
     tb_logs = get_loss_data(tb_logs)
-    return tb_logs[["model","time_delta"]].groupby(["model"]).mean()
+    return tb_logs[["model", "time_delta"]].groupby(["model"]).mean()
 
 
 if __name__ == "__main__":
