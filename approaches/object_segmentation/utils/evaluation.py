@@ -219,30 +219,35 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
                                                                     min_date),
                                                                 max_date=str_2_date(max_date))
 
+    for lag_factor in cfg.RELATIVE_LAG:
+        print(
+            (f"Start evaluation for evaluation mode {cfg.EVAL_MODE} ",
+             f"with relative lag of {cfg.RELATIVE_LAG*100}% and prediction threshold ",
+             f"confidence of {cfg.EVAL_THRESHOLD*100}%"))
         metrics = get_evaluation_metrics(y_true=true_change_points,
-                                         y_pred=pred_change_points,
-                                         y_true_label=y_true_category,
-                                         y_pred_label=y_pred_category,
-                                         factor=cfg.RELATIVE_LAG,
-                                         number_of_traces=traces_per_log[log_name])
+                                            y_pred=pred_change_points,
+                                            y_true_label=y_true_category,
+                                            y_pred_label=y_pred_category,
+                                            factor=lag_factor,
+                                            number_of_traces=traces_per_log[log_name])
 
         eval_results[log_name] = {"Detected Changepoints": pred_change_points,
-                                  "Actual Changepoints": true_change_points,
-                                  "Predicted Drift Types": y_pred_category,
-                                  "Actual Drift Types": y_true_category,
-                                  "F1-Score": metrics["f1"],
-                                  "Precision": metrics["precision"],
-                                  "Recall": metrics["recall"],
-                                  "Average Lag": metrics["lag"]
-                                  }
+                                    "Actual Changepoints": true_change_points,
+                                    "Predicted Drift Types": y_pred_category,
+                                    "Actual Drift Types": y_true_category,
+                                    "F1-Score": metrics["f1"],
+                                    "Precision": metrics["precision"],
+                                    "Recall": metrics["recall"],
+                                    "Average Lag": metrics["lag"]
+                                    }
 
         measures[log_name] = {"F1-Score": metrics["f1"],
-                              "Precision": metrics["precision"],
-                              "Recall": metrics["recall"],
-                              "Average Lag": metrics["lag"]}
+                                "Precision": metrics["precision"],
+                                "Recall": metrics["recall"],
+                                "Average Lag": metrics["lag"]}
 
-    results_df = save_results(eval_results)
-    print_measures(results_df, traces_per_log)
+        results_df = save_results(eval_results)
+        print_measures(results_df, traces_per_log)
 
 
 def get_image_paths(dir: str) -> dict:
@@ -751,6 +756,8 @@ def print_measures(results: pd.DataFrame, num_traces: dict):
             "---------------------------------------------------------------------\n")
         f.write("\n")
         f.write("EVALUATION REPORT:")
+        f.write("\n")
+        f.write(f"PREDICTION THRESHOLD: {cfg.EVAL_THRESHOLD}")
         f.write("\n")
         f.write(
             "---------------------------------------------------------------------\n")
