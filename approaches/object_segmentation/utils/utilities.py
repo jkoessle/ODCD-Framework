@@ -514,20 +514,24 @@ def get_ex_decoder() -> Tuple[dict, TfExampleDecoder]:
     """
     category_index = {
         1: {
-            'id': 1,
-            'name': 'sudden'
+            "id": 1,
+            "name": "sudden",
+            "color": "white"
         },
         2: {
-            'id': 2,
-            'name': 'gradual'
+            "id": 2,
+            "name": "gradual",
+            "color": "dodgerblue"
         },
         3: {
-            'id': 3,
-            'name': 'incremental'
+            "id": 3,
+            "name": "incremental",
+            "color": "magenta"
         },
         4: {
-            'id': 4,
-            'name': 'recurring'
+            "id": 4,
+            "name": "recurring",
+            "color": "aqua"
         }
     }
     tf_ex_decoder = TfExampleDecoder()
