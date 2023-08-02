@@ -219,11 +219,11 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
                                                                     min_date),
                                                                 max_date=str_2_date(max_date))
 
-    for lag_factor in cfg.RELATIVE_LAG:
+    for i, lag_factor in enumerate(cfg.RELATIVE_LAG):
         print(
             (f"Start evaluation for evaluation mode {cfg.EVAL_MODE} ",
-             f"with relative lag of {cfg.RELATIVE_LAG*100}% and prediction threshold ",
-             f"confidence of {cfg.EVAL_THRESHOLD*100}%"))
+             f"with relative lag of {cfg.RELATIVE_LAG[i]*100}% and prediction ",
+             f"threshold confidence of {cfg.EVAL_THRESHOLD*100}%"))
         metrics = get_evaluation_metrics(y_true=true_change_points,
                                             y_pred=pred_change_points,
                                             y_true_label=y_true_category,
@@ -246,8 +246,8 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
                                 "Recall": metrics["recall"],
                                 "Average Lag": metrics["lag"]}
 
-        results_df = save_results(eval_results)
-        print_measures(results_df, traces_per_log)
+        results_df = save_results(eval_results, index=i)
+        print_measures(results_df, traces_per_log, index=i)
 
 
 def get_image_paths(dir: str) -> dict:
@@ -347,11 +347,19 @@ def get_traces_per_log(data_dir: str) -> Union[list, dict]:
 
 
 def open_file(path: str):
+    """Opens file from path.
+
+    Args:
+        path (str): Filepath
+
+    Returns:
+        TextIOWrapper: Opened file
+    """
     return open(path)
 
 
 def get_drift_info(data_dir: str) -> pd.DataFrame:
-    """Load drift info from file.
+    """Loads drift info from file.
 
     Args:
         data_dir (str): Directory where drift info is stored
@@ -365,6 +373,11 @@ def get_drift_info(data_dir: str) -> pd.DataFrame:
 
 
 def close_file(file):
+    """Closes file.
+
+    Args:
+        file (TextIOWrapper): File object
+    """
     file.close()
 
 
@@ -691,17 +704,19 @@ def get_closest_trace_index(drift_moment_date: dt.date,
     return int(timestamps_df.iloc[index]["trace_id"])
 
 
-def save_results(results: dict):
+def save_results(results: dict, index: int) -> pd.DataFrame:
     """Saves evaluation results to output path.
 
     Args:
         results (dict): Evaluation measures
+        index (int): Index of relative lag list
     
     Returns:
         pd.DataFrame: DataFrame, containing evaluation measures
     """
     results_df = pd.DataFrame.from_dict(results, orient="index")
-    save_path = os.path.join(cfg.TRAINED_MODEL_PATH, "evaluation_results.csv")
+    save_path = os.path.join(cfg.TRAINED_MODEL_PATH, 
+                             f"evaluation_results_{cfg.EVAL_MODE}_{cfg.RELATIVE_LAG[index]}_lag.csv")
     results_df.to_csv(save_path, sep=",")
     return results_df
 
@@ -732,13 +747,14 @@ def nearest(items: list, pivot):
     return min([i for i in items if i <= pivot], key=lambda x: abs(x - pivot))
 
 
-def print_measures(results: pd.DataFrame, num_traces: dict):
+def print_measures(results: pd.DataFrame, num_traces: dict, index: int):
     """Generate evaluation measure overview. 
     Calculates total average F1-score and total average lag.
 
     Args:
         results (pd.DataFrame): Evaluation results
         num_traces (dict): Number of traces per log
+        index (int): Index of relative lag list
     """
     num_events = len(num_traces.keys())
     
@@ -749,7 +765,8 @@ def print_measures(results: pd.DataFrame, num_traces: dict):
     total_average_lag = lag_values / num_events
     average_length = int(sum(num_traces.values()) / num_events)
     
-    text_path = os.path.join(cfg.TRAINED_MODEL_PATH, "evaluation_report.txt")
+    text_path = os.path.join(cfg.TRAINED_MODEL_PATH, 
+                             f"evaluation_report_{cfg.EVAL_MODE}_{cfg.RELATIVE_LAG[index]}_lag.txt")
 
     with open(text_path, "w") as f:
         f.write(
