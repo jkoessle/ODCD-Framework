@@ -583,11 +583,11 @@ def visualize_batch(path: str, mode: str, seed: int, n_examples=3):
 
     plt.savefig(os.path.join(cfg.TRAINED_MODEL_PATH, f"{mode}_batch.png"),
                 bbox_inches="tight")
-
-
-def visualize_predictions(path: str, mode: str, model: tf.keras.Model,
-                          seed: int, n_examples=3, threshold=0.50):
+    
+    
+def visualize_predictions_old(path, mode, model, seed, n_examples=3, threshold=0.50):
     """Visualize bounding boxes for batch of images (prediction).
+    Is replaced by visualize_predictions.
 
     Args:
         path (str): Image data path
@@ -655,6 +655,129 @@ def visualize_predictions(path: str, mode: str, model: tf.keras.Model,
 
     plt.savefig(os.path.join(cfg.TRAINED_MODEL_PATH, f"{mode}_predictions.png"),
                 bbox_inches="tight")
+
+
+def visualize_predictions(path, mode, model, seed, n_examples=3, threshold=0.50):
+    """Visualize bounding boxes for batch of images (prediction).
+
+    Args:
+        path (str): Image data path
+        mode (str): Training or validation mode
+        model (tf.keras.Model): TensorFlow model
+        seed (int): Seed for replication
+        n_examples (int, optional): Number of logs to visualize. Defaults to 3.
+        threshold (float, optional): Threshold for prediction confidence. 
+            Defaults to 0.50.
+    """
+    # dynamically create subplots based on n_examples
+    columns = 3
+    rows = n_examples // columns
+    if n_examples % columns != 0:
+        rows += 1
+    pos = range(1, n_examples + 1)
+
+    input_image_size = cfg.IMAGE_SIZE
+    model_fn = model.signatures['serving_default']
+
+    category_index, tf_ex_decoder = get_ex_decoder()
+
+    data = tf.data.TFRecordDataset(
+        path).shuffle(
+        buffer_size=cfg.EVAL_EXAMPLES, seed=seed).take(n_examples)
+
+    plt.figure(figsize=(20, 20))
+    for i, serialized_example in enumerate(data):
+        plt.subplot(rows, columns, pos[i])
+        decoded_tensors = tf_ex_decoder.decode(serialized_example)
+        image = build_inputs_for_object_detection(
+            decoded_tensors['image'], input_image_size)
+        image = tf.expand_dims(image, axis=0)
+        image = tf.cast(image, dtype=tf.uint8)
+        image_np = image[0].numpy()
+        result = model_fn(image)
+
+        scores = result['detection_scores'][0].numpy()
+
+        bbox_pred = result['detection_boxes'][0].numpy()
+        bbox_pred = bbox_pred[scores > threshold]
+
+        y_pred = result['detection_classes'][0].numpy().astype(int)
+        y_pred = y_pred[scores > threshold]
+
+        visualize_boxes_and_labels(image=image_np,
+                                   bboxes=bbox_pred,
+                                   labels=y_pred,
+                                   score=result['detection_scores'][0].numpy(),
+                                   category_index=category_index,
+                                   is_groundtruth=False)
+        visualize_boxes_and_labels(image=image_np,
+                                   bboxes=decoded_tensors['groundtruth_boxes'].numpy(
+                                   ),
+                                   labels=decoded_tensors['groundtruth_classes'].numpy().astype(
+                                       int),
+                                   score=None,
+                                   category_index=category_index,
+                                   is_groundtruth=True)
+        plt.imshow(image_np)
+        plt.axis('off')
+
+    plt.savefig(os.path.join(cfg.TRAINED_MODEL_PATH, f"{mode}_predictions.png"),
+                bbox_inches="tight")
+
+
+def visualize_boxes_and_labels(image: np.ndarray, bboxes: list, labels: list, 
+                               score: list, category_index: dict, is_groundtruth: bool):
+    """Visualize bounding boxes and the corresponding labels.
+
+    Args:
+        image (np.ndarray): Image as numpy array
+        bboxes (list): Bounding boxes
+        labels (list): Corresponding labels
+        score (list): Prediction confidence values, optional
+        category_index (dict): Mapping of numerical to categorical label
+        is_groundtruth (bool): Indicating whether values are from 
+            groundtruth or prediction
+    """
+    ax = plt.gca()
+
+    for i, (box, cls) in enumerate(zip(bboxes, labels)):
+
+        tx1, ty1, x2, y2 = box
+
+        if is_groundtruth:
+            text = "{}: GT".format(category_index[cls]["name"])
+            edgecolor = "black"
+
+            im_height, im_width, _ = image.shape
+
+            tx1, ty1, x2, y2 = (tx1 * im_width, ty1 * im_height,
+                                x2 * im_width, y2 * im_height)
+            text_pos = y2 + (image.shape[0]*0.03)
+        else:
+            text = "{}: {}%".format(
+                category_index[cls]["name"], np.round(score[i] * 100, 0))
+            text_pos = ty1 - (image.shape[0]*0.02)
+            edgecolor = category_index[cls]["color"]
+
+        # width (w) = xmax - xmin ; height (h) = ymax - ymin
+        tw, th = x2 - tx1, y2 - ty1
+
+        patch = plt.Rectangle(
+            [tx1, ty1], tw, th, fill=False, edgecolor=edgecolor, linewidth=1
+        )
+        ax.add_patch(patch)
+        ax.text(
+            tx1,
+            text_pos,
+            text,
+            bbox={"facecolor": edgecolor, "alpha": 0.75, "linewidth": 0},
+            clip_box=ax.clipbox,
+            clip_on=True,
+            fontsize=8,
+            # verticalalignment='top',
+            color="white",
+            weight='bold'
+        )
 
 
 def build_inputs_for_object_detection(image, input_image_size):
