@@ -430,8 +430,10 @@ def get_changepoints_trace_idx_winsim(bboxes: list, y_pred: list,
                                          int(window_info[str(change_point)][0]))
             else:
                 # change start and end is equal to the date of the first trace in window
-                change_start = round(bbox[0])
-                change_end = round(bbox[2])
+                # set window id of change start to at least 1 for edge cases
+                # set window id of change end to maximum 200 for edge cases
+                change_start = (1 if round(bbox[0]) < 1 else round(bbox[0]))
+                change_end = (200 if round(bbox[2]) > 200 else round(bbox[2]))
                 change_point_trace_id = (int(window_info[str(change_start)][0]),
                                          int(window_info[str(change_end)][0]))
             change_points.append(change_point_trace_id)
@@ -805,7 +807,7 @@ def create_evaluation_dir(path: str) -> str:
     Returns:
         str: Path of evaluation directory
     """
-    val_path = os.path.join(path, "evaluation")
+    val_path = os.path.join(path, "evaluation", f"threshold_{cfg.EVAL_THRESHOLD}")
     if not os.path.isdir(val_path):
-        os.mkdir(val_path)
+        os.makedirs(val_path)
     return val_path
