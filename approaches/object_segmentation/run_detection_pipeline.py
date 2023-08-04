@@ -1,10 +1,10 @@
 import os
 import pandas as pd
 
-import object_segmentation.preprocessing as pp
-import object_segmentation.utils.config as cfg
-import object_segmentation.utils.utilities as seg_utils
-import object_segmentation.utils.vdd_helper as vdd
+import utils.preprocessing as pp
+import utils.config as cfg
+import utils.utilities as seg_utils
+import utils.vdd_helper as vdd
 
 def generate_only_annotations(data_dir: str):
     """Generate only annotations for given data

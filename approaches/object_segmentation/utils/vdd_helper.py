@@ -7,8 +7,8 @@ import subprocess
 import numpy as np
 import pandas as pd
 import matplotlib.dates as mdates
-import object_segmentation.utils.config as cfg
-import object_segmentation.utils.utilities as utils
+import utils.config as cfg
+import utils.utilities as utils
 
 from pathlib import Path
 from matplotlib import pyplot as plt
@@ -105,6 +105,46 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
     plt.close()
 
     return bboxes, date_info
+
+
+def vdd_draw_drift_map_prediction(data, number, exp_path, ts_ticks,
+                                     cmap="plasma") -> tuple:
+    ''' the main script that describes drawing of the DriftMAP
+    Source:
+    https://github.com/yesanton/Process-Drift-Visualization-With-Declare/blob/master/src/visualize_drift_map.py
+    Author: Anton Yeshchenko
+    Note: Adapted for the use of this work.
+    '''
+    data_c = copy.deepcopy(data)
+    for i in range(len(data)):
+        for j in range(len(data[i])):
+            data_c[i][j] = data[i][j]/100
+
+    ts_ticks_date = np.array(
+        [datetime.strptime(d, '%m-%d-%Y').date() for d in ts_ticks])
+
+    min_date = np.min(ts_ticks_date)
+    max_date = np.max(ts_ticks_date)
+    
+    date_info_min = datetime.strftime(min_date, '%m-%d-%Y')
+    date_info_max = datetime.strftime(max_date, '%m-%d-%Y')
+
+    date_info = (date_info_min, date_info_max)
+
+    y_data = np.array(data_c)
+
+    fig = plt.figure(figsize=(1, 1))
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    ax.set_axis_off()
+    fig.add_axes(ax)
+    ax.imshow(y_data, cmap=cmap, interpolation='nearest',
+                extent=[min_date, max_date, y_data.shape[0], 0], aspect='auto'
+                )
+    fig.savefig(os.path.join(exp_path, f"{number}.jpg"),
+                dpi=y_data.shape[0])
+    plt.close()
+    
+    return date_info
 
 
 def vdd_mine_minerful_for_declare_constraints(log_name: str, path, exp_path):
@@ -733,3 +773,5 @@ def get_minerful_constraints_path(log_name: str, constraints_dir: str):
         return constraints_path
     else:
         return None
+    
+
