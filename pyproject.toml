@@ -26,6 +26,7 @@ tbparse = "^0.0.7"
 pyarrow = "^12.0.1"
 
 
+
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.0.259"
 pre-commit = "^3.2.1"
