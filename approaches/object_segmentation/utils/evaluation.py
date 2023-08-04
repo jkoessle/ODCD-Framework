@@ -3,9 +3,10 @@ import json
 import pandas as pd
 import tensorflow as tf
 import numpy as np
-
 import datetime as dt
 
+from collections import defaultdict
+from tqdm import tqdm
 from typing import List, Tuple, Union
 from . import config as cfg
 from . import utilities as utils
@@ -13,6 +14,7 @@ from . import cdrift_evaluation as cdrift
 
 
 def get_evaluation_metrics(y_true: list, y_pred: list,
+                           y_true_label: list, y_pred_label: list,
                            factor: float, number_of_traces: int) -> dict:
     """Get all relevant evaluation metrics.
 
@@ -27,19 +29,48 @@ def get_evaluation_metrics(y_true: list, y_pred: list,
     """
     lag = int(factor * number_of_traces)
 
-    tp_fp, assignments = cdrift.getTP_FP(detected=y_pred,
-                                         known=y_true,
-                                         lag=lag)
-    tp, fp = tp_fp
+    _, assignments = cdrift.getTP_FP(detected=y_pred,
+                                     known=y_true,
+                                     lag=lag)
+
+    matched_assignments = match_labels(assignments, y_true, y_true_label,
+                                       y_pred, y_pred_label)
+
+    tp = len(matched_assignments)
+    fp = len(y_pred) - tp
 
     f1, precision, recall = get_f1_score(tp, fp, len(y_true))
-    average_lag = get_average_lag(assignments)
+    average_lag = get_average_lag(matched_assignments)
 
     metrics = {"f1": f1,
                "precision": precision,
                "recall": recall,
                "lag": average_lag}
     return metrics
+
+
+def match_labels(assignments: list, y_true: list, y_true_labels: list,
+                 y_pred: list, y_pred_labels: list) -> list:
+    """Match predicted label with actual label. 
+    If predicted label is not equal to actual label, 
+    remove prediction from assignments.
+    In other words: prediction becomes a false positive.
+
+    Args:
+        assignments (list): Assignments from CDrift evaluation
+        y_true (list): Actual changepoints
+        y_true_labels (list): Actual labels
+        y_pred (list): Predicted changepoints
+        y_pred_labels (list): Predicted labels
+
+    Returns:
+        list: Label-matched assignments
+    """
+    for assignment in assignments:
+        pred, true = assignment
+        if y_pred_labels[y_pred.index(pred)] != y_true_labels[y_true.index(true)]:
+            assignments.remove(assignment)
+    return assignments
 
 
 def get_precision(tp: int, fp: int) -> float:
@@ -68,8 +99,7 @@ def get_recall(tp: int, y_true_size: int) -> float:
     return tp / y_true_size
 
 
-def get_f1_score(tp: int, fp: int, y_true_size: int) \
-    -> Union[Tuple[float, float, float],Tuple[np.nan, np.nan, np.nan]]:
+def get_f1_score(tp: int, fp: int, y_true_size: int) -> Tuple[float, float, float]:
     """Get F1-score.
 
     Args:
@@ -127,6 +157,8 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
         threshold (float, optional): Threshold for prediction confidence. 
         Defaults to 0.5.
     """
+    val_path = create_evaluation_dir(cfg.TRAINED_MODEL_PATH)
+
     input_image_size = cfg.IMAGE_SIZE
     model_fn = model.signatures['serving_default']
 
@@ -140,13 +172,14 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
     date_info = get_date_info(data_dir)
     traces_per_log = get_traces_per_log(data_dir)
 
-    category_index, tf_ex_decoder = utils.get_ex_decoder()
+    category_index, _ = utils.get_ex_decoder()
 
-    eval_results = {}
+    eval_results = defaultdict(lambda: defaultdict(dict))
 
     images = get_image_paths(data_dir)
 
-    for image_name, image_path in images.items():
+    for image_name, image_path in tqdm(images.items(),
+                                       desc="Evaluating model", unit="images"):
 
         path = os.path.join(image_path, image_name)
         image = utils.load_image(path)
@@ -187,23 +220,31 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
                                                                 min_date=str_2_date(
                                                                     min_date),
                                                                 max_date=str_2_date(max_date))
+        for lag_factor in cfg.RELATIVE_LAG:
+            metrics = get_evaluation_metrics(y_true=true_change_points,
+                                             y_pred=pred_change_points,
+                                             y_true_label=y_true_category,
+                                             y_pred_label=y_pred_category,
+                                             factor=lag_factor,
+                                             number_of_traces=traces_per_log[log_name])
 
-        metrics = get_evaluation_metrics(y_true=true_change_points,
-                                         y_pred=pred_change_points,
-                                         factor=cfg.RELATIVE_LAG,
-                                         number_of_traces=traces_per_log[log_name])
+            str_lag = f"lag_{lag_factor}"
 
-        eval_results[log_name] = {"Detected Changepoints": pred_change_points,
-                                  "Actual Changepoints": true_change_points,
-                                  "Predicted Drift Types": y_pred_category,
-                                  "Actual Drift Types": y_true_category,
-                                  "F1-Score": metrics["f1"],
-                                  "Precision": metrics["precision"],
-                                  "Recall": metrics["recall"],
-                                  "Average Lag": metrics["lag"]
-                                  }
-
-    save_results(eval_results)
+            eval_results[str_lag][log_name] = \
+                {"Detected Changepoints": pred_change_points,
+                 "Actual Changepoints": true_change_points,
+                 "Predicted Drift Types": y_pred_category,
+                 "Actual Drift Types": y_true_category,
+                 "F1-Score": metrics["f1"],
+                 "Precision": metrics["precision"],
+                 "Recall": metrics["recall"],
+                 "Average Lag": metrics["lag"]
+                 }
+    eval_results = dict(eval_results)
+    for lag_factor in cfg.RELATIVE_LAG:
+        str_lag = f"lag_{lag_factor}"
+        results_df = save_results(eval_results[str_lag], lag_factor, val_path)
+        print_measures(results_df, traces_per_log, lag_factor, val_path)
 
 
 def get_image_paths(dir: str) -> dict:
@@ -303,11 +344,19 @@ def get_traces_per_log(data_dir: str) -> Union[list, dict]:
 
 
 def open_file(path: str):
+    """Opens file from path.
+
+    Args:
+        path (str): Filepath
+
+    Returns:
+        TextIOWrapper: Opened file
+    """
     return open(path)
 
 
 def get_drift_info(data_dir: str) -> pd.DataFrame:
-    """Load drift info from file.
+    """Loads drift info from file.
 
     Args:
         data_dir (str): Directory where drift info is stored
@@ -321,6 +370,11 @@ def get_drift_info(data_dir: str) -> pd.DataFrame:
 
 
 def close_file(file):
+    """Closes file.
+
+    Args:
+        file (TextIOWrapper): File object
+    """
     file.close()
 
 
@@ -364,21 +418,26 @@ def get_changepoints_trace_idx_winsim(bboxes: list, y_pred: list,
         List[tuple]: List of changepoints as trace indices
     """
     change_points = []
-    for i, bbox in enumerate(bboxes):
-        if y_pred[i] == "sudden":
-            # changepoint is equal to the date of the first trace in the middle
-            # window of bbox
-            change_point = get_sudden_changepoint_winsim(int(bbox[0]))
-            change_point_trace_id = (int(window_info[str(change_point)][0]),
-                                     int(window_info[str(change_point)][0]))
-        else:
-            # change start and end is equal to the date of the first trace in window
-            change_start = int(bbox[0])
-            change_end = int(bbox[0] + bbox[2])
-            change_point_trace_id = (int(window_info[str(change_start)][0]),
-                                     int(window_info[str(change_end)][0]))
-        change_points.append(change_point_trace_id)
-    return change_points
+    if len(bboxes) == 0:
+        return change_points
+    else:
+        for i, bbox in enumerate(bboxes):
+            if y_pred[i] == "sudden":
+                # changepoint is equal to the date of the first trace in the middle
+                # window of bbox
+                change_point = get_sudden_changepoint_winsim(round(bbox[0]))
+                change_point_trace_id = (int(window_info[str(change_point)][0]),
+                                         int(window_info[str(change_point)][0]))
+            else:
+                # change start and end is equal to the date of the first trace in window
+                # set window id of change start to at least 1 for edge cases
+                # set window id of change end to maximum 200 for edge cases
+                change_start = (1 if round(bbox[0]) < 1 else round(bbox[0]))
+                change_end = (200 if round(bbox[2]) > 200 else round(bbox[2]))
+                change_point_trace_id = (int(window_info[str(change_start)][0]),
+                                         int(window_info[str(change_end)][0]))
+            change_points.append(change_point_trace_id)
+        return change_points
 
 
 def get_changepoints_timestamp_vdd(bboxes: list, y_pred: list,
@@ -431,32 +490,35 @@ def get_changepoints_trace_idx_vdd(bboxes: list, y_pred: list,
         List[tuple]: List of changepoints as trace indices
     """
     change_points = []
-    day_delta = max_date - min_date
-    for i, bbox in enumerate(bboxes):
-        if y_pred[i] == "sudden":
-            xmin = get_sudden_changepoint_vdd(int(bbox[0]))
-            relative_xmin = xmin / cfg.TARGETSIZE
-            change_point_date = min_date + dt.timedelta(days=int(day_delta.days *
-                                                                 relative_xmin))
-            closest_trace = get_closest_trace_index(change_point_date,
-                                                    timestamps_per_trace)
-            change_point_index = (closest_trace, closest_trace)
-        else:
-            xmin = bbox[0]
-            xmax = bbox[0] + bbox[2]
-            relative_xmin = xmin / cfg.TARGETSIZE
-            relative_xmax = xmax / cfg.TARGETSIZE
-            change_start_date = min_date + dt.timedelta(days=int(day_delta.days *
-                                                                 relative_xmin))
-            change_end_date = min_date + dt.timedelta(days=int(day_delta.days *
-                                                               relative_xmax))
-            change_start_index = get_closest_trace_index(change_start_date,
-                                                         timestamps_per_trace)
-            change_end_index = get_closest_trace_index(change_end_date,
-                                                       timestamps_per_trace)
-            change_point_index = (change_start_index, change_end_index)
-        change_points.append(change_point_index)
-    return change_points
+    if len(bboxes) == 0:
+        return change_points
+    else:
+        day_delta = max_date - min_date
+        for i, bbox in enumerate(bboxes):
+            if y_pred[i] == "sudden":
+                xmin = get_sudden_changepoint_vdd(int(bbox[0]))
+                relative_xmin = xmin / cfg.TARGETSIZE
+                change_point_date = min_date + dt.timedelta(days=int(day_delta.days *
+                                                                     relative_xmin))
+                closest_trace = get_closest_trace_index(change_point_date,
+                                                        timestamps_per_trace)
+                change_point_index = (closest_trace, closest_trace)
+            else:
+                xmin = bbox[0]
+                xmax = bbox[2]
+                relative_xmin = xmin / cfg.TARGETSIZE
+                relative_xmax = xmax / cfg.TARGETSIZE
+                change_start_date = min_date + dt.timedelta(days=int(day_delta.days *
+                                                                     relative_xmin))
+                change_end_date = min_date + dt.timedelta(days=int(day_delta.days *
+                                                                   relative_xmax))
+                change_start_index = get_closest_trace_index(change_start_date,
+                                                             timestamps_per_trace)
+                change_end_index = get_closest_trace_index(change_end_date,
+                                                           timestamps_per_trace)
+                change_point_index = (change_start_index, change_end_index)
+            change_points.append(change_point_index)
+        return change_points
 
 
 def get_log_info(log_name: str, drift_info: pd.DataFrame) -> pd.DataFrame:
@@ -509,7 +571,7 @@ def get_true_changepoints_trace_idx(log_info: pd.DataFrame) -> list:
         else:
             trace_id = drift.iloc[0]["drift_traces_index"]
             trace_id = utils.special_string_2_list(trace_id)
-            change_points_trace_idx.append((trace_id[0], trace_id[0]))
+            change_points_trace_idx.append((trace_id[0], trace_id[-1]))
     return change_points_trace_idx
 
 
@@ -641,15 +703,22 @@ def get_closest_trace_index(drift_moment_date: dt.date,
     return int(timestamps_df.iloc[index]["trace_id"])
 
 
-def save_results(results: dict):
+def save_results(results: dict, lag_factor: float, val_path: str) -> pd.DataFrame:
     """Saves evaluation results to output path.
 
     Args:
         results (dict): Evaluation measures
+        lag_factor (float): Relative lag
+        val_path (str): Evaluation directory
+    
+    Returns:
+        pd.DataFrame: DataFrame, containing evaluation measures
     """
     results_df = pd.DataFrame.from_dict(results, orient="index")
-    save_path = os.path.join(cfg.TRAINED_MODEL_PATH, "evaluation_results.csv")
+    save_path = os.path.join(val_path,
+                             f"evaluation_results_{cfg.EVAL_MODE}_{lag_factor}_lag.csv")
     results_df.to_csv(save_path, sep=",")
+    return results_df
 
 
 def str_2_date(date: str) -> dt.date:
@@ -676,3 +745,69 @@ def nearest(items: list, pivot):
         any: Element that is closest to pivot
     """
     return min([i for i in items if i <= pivot], key=lambda x: abs(x - pivot))
+
+
+def print_measures(results: pd.DataFrame, num_traces: dict,
+                   lag_factor: float, val_path: str):
+    """Generate evaluation measure overview. 
+    Calculates total average F1-score and total average lag.
+
+    Args:
+        results (pd.DataFrame): Evaluation results
+        num_traces (dict): Number of traces per log
+        lag_factor (float): Relative lag
+        val_path (str): Evaluation directory
+    """
+    num_events = len(num_traces.keys())
+
+    f1_values = np.nansum(results["F1-Score"])
+    lag_values = np.nansum(results["Average Lag"])
+
+    total_average_f1 = f1_values / num_events
+    total_average_lag = lag_values / num_events
+    average_length = int(sum(num_traces.values()) / num_events)
+
+    text_path = os.path.join(val_path,
+                             f"evaluation_report_{cfg.EVAL_MODE}_{lag_factor}_lag.txt")
+
+    with open(text_path, "w") as f:
+        f.write(
+            "---------------------------------------------------------------------\n")
+        f.write("\n")
+        f.write("EVALUATION REPORT:")
+        f.write("\n")
+        f.write(f"PREDICTION THRESHOLD: {cfg.EVAL_THRESHOLD}")
+        f.write("\n")
+        f.write(
+            "---------------------------------------------------------------------\n")
+        f.write(f"In total {num_events} were evaluated, with an average trace length of\
+                {average_length}\n")
+        f.write("\n")
+        f.write(
+            "---------------------------------------------------------------------\n")
+        f.write("\n")
+        f.write(
+            f"The average f1 score for all evaluated logs is: {total_average_f1}.\n")
+        f.write(
+            "---------------------------------------------------------------------\n")
+        f.write("\n")
+        f.write(
+            f"The average lag for all evaluated logs is: {total_average_lag}.\n")
+        f.write(
+            "---------------------------------------------------------------------\n")
+
+
+def create_evaluation_dir(path: str) -> str:
+    """Create directory for evaluation files.
+    If dir already exists, skip creation.
+
+    Args:
+        path (str): Model path
+
+    Returns:
+        str: Path of evaluation directory
+    """
+    val_path = os.path.join(path, "evaluation", f"threshold_{cfg.EVAL_THRESHOLD}")
+    if not os.path.isdir(val_path):
+        os.makedirs(val_path)
+    return val_path

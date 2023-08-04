@@ -2,11 +2,10 @@ import os
 import json
 import numpy as np
 import pandas as pd
-import cnn_image_detection.utils.utilities as cnn_utils
-import object_segmentation.utils.utilities as seg_utils
-import object_segmentation.utils.config as cfg
-import object_segmentation.utils.vdd_helper as vdd_helper
-import object_segmentation.utils.vdd_data_analysis as vdd
+import utils.utilities as utils
+import utils.config as cfg
+import utils.vdd_helper as vdd_helper
+import utils.vdd_data_analysis as vdd
 
 from pm4py import discover_dfg_typed
 from numpy import linalg as LA
@@ -16,7 +15,6 @@ from pm4py.objects.conversion.log import converter as log_converter
 from pm4py.objects.log.util import dataframe_utils
 from pm4py.objects.log.obj import EventLog
 from typing import Tuple
-from cnn_image_detection.utils.sanity_checks import check_dfg_graph_freq
 from tqdm import tqdm
 
 
@@ -28,12 +26,12 @@ def winsim_pipeline(n_windows=100, p_mode="train"):
         p_mode (str, optional): Preprocessing mode. Defaults to "train".
     """
     # create experiment folder structure
-    cfg.DEFAULT_DATA_DIR = cnn_utils.create_multilabel_experiment(cfg.DEFAULT_DATA_DIR)
+    cfg.DEFAULT_DATA_DIR = utils.create_winsim_experiment(cfg.DEFAULT_DATA_DIR)
 
     # get all paths and file names of event logs
-    log_files = cnn_utils.get_event_log_paths(cfg.DEFAULT_LOG_DIR)
+    log_files = utils.get_event_log_paths(cfg.DEFAULT_LOG_DIR)
 
-    drift_info = seg_utils.extract_drift_information(cfg.DEFAULT_LOG_DIR)
+    drift_info = utils.extract_drift_information(cfg.DEFAULT_LOG_DIR)
 
     # incrementally store number of log based on drift type - for file naming purposes
     drift_number = 1
@@ -48,27 +46,27 @@ def winsim_pipeline(n_windows=100, p_mode="train"):
                            unit="Event Log"):
 
         # load event log
-        event_log = cnn_utils.import_event_log(path=path, name=name)
+        event_log = utils.import_event_log(path=path, name=name)
 
         # if the log contains incomplete traces, the log is filtered
-        filtered_log = cnn_utils.filter_complete_events(event_log)
+        filtered_log = utils.filter_complete_events(event_log)
 
         windowed_dfg_matrices, borders, window_information, log_date_info = \
             log_to_windowed_dfg_count(filtered_log, n_windows)
         
         window_info[name] = window_information
 
-        drift_info = seg_utils.update_trace_indices(drift_info, name, borders)
+        drift_info = utils.update_trace_indices(drift_info, name, borders)
 
         # get similarity matrix
         sim_matrix = similarity_calculation(windowed_dfg_matrices)
 
         log_matching[name] = drift_number
         date_info[name] = log_date_info
-        number_of_traces[name] = seg_utils.get_number_of_traces(filtered_log)
+        number_of_traces[name] = utils.get_number_of_traces(filtered_log)
 
         # save matrix as image
-        seg_utils.matrix_to_img(matrix=sim_matrix, 
+        utils.matrix_to_img(matrix=sim_matrix, 
                                 number=drift_number,
                                 exp_path=cfg.DEFAULT_DATA_DIR,
                                 mode=cfg.COLOR)
@@ -95,13 +93,13 @@ def winsim_pipeline(n_windows=100, p_mode="train"):
     with open(number_of_traces_path, "w", encoding='utf-8') as file:
         json.dump(number_of_traces, file)
 
-    seg_utils.generate_annotations(drift_info, 
+    utils.generate_annotations(drift_info, 
                                    dir=cfg.DEFAULT_DATA_DIR,
                                    log_matching=log_matching,
                                    log_names=log_files.keys())
 
     if cfg.AUTOMATE_TFR_SCRIPT:
-        seg_utils.start_tfr_script(repo_dir=cfg.TENSORFLOW_MODELS_DIR,
+        utils.start_tfr_script(repo_dir=cfg.TENSORFLOW_MODELS_DIR,
                                 data_dir=cfg.DEFAULT_DATA_DIR,
                                 tfr_dir=cfg.TFR_RECORDS_DIR,
                                 prefix=cfg.OUTPUT_PREFIX)
@@ -114,7 +112,7 @@ def vdd_pipeline():
     cfg.DEFAULT_DATA_DIR = vdd_helper.create_experiment(cfg.DEFAULT_DATA_DIR)
 
     # get all paths and file names of event logs
-    log_files = cnn_utils.get_event_log_paths(cfg.DEFAULT_LOG_DIR)
+    log_files = utils.get_event_log_paths(cfg.DEFAULT_LOG_DIR)
 
     drift_info = vdd_helper.extract_vdd_drift_information(cfg.DEFAULT_LOG_DIR)
 
@@ -135,10 +133,10 @@ def vdd_pipeline():
         log_path = os.path.join(path, name)
 
         # load event log
-        event_log = cnn_utils.import_event_log(path=path, name=name)
+        event_log = utils.import_event_log(path=path, name=name)
 
         # if the log contains incomplete traces, the log is filtered
-        filtered_log = cnn_utils.filter_complete_events(event_log)
+        filtered_log = utils.filter_complete_events(event_log)
 
         if cfg.MINE_CONSTRAINTS:
             minerful_csv_path = vdd_helper.vdd_mine_minerful_for_declare_constraints(
@@ -163,7 +161,7 @@ def vdd_pipeline():
         first_timestamps[name] = vdd_helper.get_first_timestamp_per_trace(
             filtered_log)
 
-        number_of_traces[name] = seg_utils.get_number_of_traces(filtered_log)
+        number_of_traces[name] = utils.get_number_of_traces(filtered_log)
 
         constraints = vdd_helper.vdd_import_minerful_constraints_timeseries_data(
             minerful_csv_path)
@@ -234,7 +232,7 @@ def vdd_pipeline():
                                         log_names=log_matching.keys())
 
     if cfg.AUTOMATE_TFR_SCRIPT:
-        seg_utils.start_tfr_script(repo_dir=cfg.TENSORFLOW_MODELS_DIR,
+        utils.start_tfr_script(repo_dir=cfg.TENSORFLOW_MODELS_DIR,
                                    data_dir=cfg.DEFAULT_DATA_DIR,
                                    tfr_dir=cfg.TFR_RECORDS_DIR,
                                    prefix=cfg.OUTPUT_PREFIX)
@@ -263,8 +261,8 @@ def log_to_windowed_dfg_count(event_log: EventLog, n_windows: int) \
     
     min_date = np.min(event_log_df["time:timestamp"])
     max_date = np.max(event_log_df["time:timestamp"])
-    date_info = (seg_utils.datetime_2_str(min_date), 
-                 seg_utils.datetime_2_str(max_date))
+    date_info = (utils.datetime_2_str(min_date), 
+                 utils.datetime_2_str(max_date))
     
     # get unique event names
     act_names = np.unique(event_log_df["concept:name"])
@@ -273,7 +271,8 @@ def log_to_windowed_dfg_count(event_log: EventLog, n_windows: int) \
     # hint: pandas unique does not sort the result, therefore it is faster and the
     # chronological order is maintained
     unique_traces = pd.unique(event_log_df["case:concept:name"])
-
+    # unique_traces = utils.extract_integers_from_list(unique_traces)
+    
     # get window size based on number of windows and event log size
     # event log size is equal to number of traces
     window_size = len(event_log) // n_windows
@@ -300,7 +299,7 @@ def log_to_windowed_dfg_count(event_log: EventLog, n_windows: int) \
         # at last window fill until the end of the list
         else:
             w_unique_traces = unique_traces[left_boundary:]
-            right_boundary = int(unique_traces[-1])
+            right_boundary = len(unique_traces) - 1 
 
         # search all events for given traces
         log_window = event_log_df[event_log_df["case:concept:name"]
@@ -333,7 +332,7 @@ def log_to_windowed_dfg_count(event_log: EventLog, n_windows: int) \
 
     # compare dfg frequencies of all windows with dfg frequencies of complete log
     # ensures that there are no missing relations
-    total_freq = check_dfg_graph_freq(event_log_df)
+    total_freq = utils.check_dfg_graph_freq(event_log_df)
     assert total_freq == freq_count, (
         "Missing directly follow relations.\n"
         f"Number of relations in whole event log: {total_freq}.\n"

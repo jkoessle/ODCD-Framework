@@ -11,30 +11,95 @@ import pm4py as pm
 from . import config as cfg
 
 from PIL import Image
+from tqdm import tqdm
 from official.vision.dataloaders.tf_example_decoder import TfExampleDecoder
 from official.vision.utils.object_detection import visualization_utils
 from official.core import exp_factory
 from official.core.config_definitions import ExperimentConfig
 from typing import Union, Tuple
 from pm4py.objects.log.obj import EventLog
+from pm4py.objects.log.importer.xes import importer as xes_importer
+from pm4py.algo.filtering.log.attributes import attributes_filter
 from official.vision.ops.preprocess_ops import resize_and_crop_image
+from pm4py import discover_dfg_typed
 
 
-def get_event_log_paths() -> dict:
+def get_event_log_paths(dir: str) -> dict:
     """Get event logs for directory.
+
+    Args:
+        dir (str): Log directory
 
     Returns:
         dict: Dictionary, containing names and paths of event logs
     """
     list_of_files = {}
-    for dir_path, dir_names, filenames in os.walk(cfg.DEFAULT_LOG_DIR):
+    for dir_path, dir_names, filenames in os.walk(dir):
         for filename in filenames:
             if filename.endswith('.xes'):
                 list_of_files[filename] = dir_path
 
-    assert len(list_of_files) > 0, f"{cfg.DEFAULT_LOG_DIR} is empty"
+    assert len(list_of_files) > 0, f"{dir} is empty"
 
     return list_of_files
+
+
+def import_event_log(path: str, name: str) -> EventLog:
+    """Read event log from path and return EventLog object.
+
+    Args:
+        path (str): Log path
+        name (str): Log name
+
+    Returns:
+        EventLog: Imported event log
+    """
+    variant = xes_importer.Variants.ITERPARSE
+    parameters = {variant.value.Parameters.TIMESTAMP_SORT: True,
+                  variant.value.Parameters.SHOW_PROGRESS_BAR: False}
+    event_log = xes_importer.apply(os.path.join(
+        path, name), variant=variant, parameters=parameters)
+
+    return event_log
+
+
+def filter_complete_events(log: EventLog) -> EventLog:
+    """Filter event log on complete events.
+
+    Args:
+        log (EventLog): Imported event log
+
+    Returns:
+        EventLog: Filtered event log
+    """
+    try:
+        filtered_log = attributes_filter.apply_events(log, ["complete", "COMPLETE"], 
+            parameters={
+            attributes_filter.Parameters.ATTRIBUTE_KEY: "lifecycle:transition",
+            attributes_filter.Parameters.POSITIVE: True})
+    except Exception:
+        filtered_log = log
+
+    return filtered_log
+
+
+def filter_complete_events_uppercase(log: EventLog) -> EventLog:
+    """Filter event log on complete events.
+
+    Args:
+        log (EventLog): Imported event log
+
+    Returns:
+        EventLog: Filtered event log
+    """
+    try:
+        filtered_log = attributes_filter.apply_events(log, ["COMPLETE"], parameters={
+            attributes_filter.Parameters.ATTRIBUTE_KEY: "lifecycle:transition",
+            attributes_filter.Parameters.POSITIVE: True})
+    except Exception:
+        filtered_log = log
+
+    return filtered_log
 
 
 def get_drift_coordinates(change_idx: list) -> list:
@@ -513,20 +578,24 @@ def get_ex_decoder() -> Tuple[dict, TfExampleDecoder]:
     """
     category_index = {
         1: {
-            'id': 1,
-            'name': 'sudden'
+            "id": 1,
+            "name": "sudden",
+            "color": "white"
         },
         2: {
-            'id': 2,
-            'name': 'gradual'
+            "id": 2,
+            "name": "gradual",
+            "color": "dodgerblue"
         },
         3: {
-            'id': 3,
-            'name': 'incremental'
+            "id": 3,
+            "name": "incremental",
+            "color": "magenta"
         },
         4: {
-            'id': 4,
-            'name': 'recurring'
+            "id": 4,
+            "name": "recurring",
+            "color": "aqua"
         }
     }
     tf_ex_decoder = TfExampleDecoder()
@@ -582,11 +651,11 @@ def visualize_batch(path: str, mode: str, seed: int, n_examples=3):
 
     plt.savefig(os.path.join(cfg.TRAINED_MODEL_PATH, f"{mode}_batch.png"),
                 bbox_inches="tight")
-
-
-def visualize_predictions(path: str, mode: str, model: tf.keras.Model,
-                          seed: int, n_examples=3, threshold=0.50):
+    
+    
+def visualize_predictions_old(path, mode, model, seed, n_examples=3, threshold=0.50):
     """Visualize bounding boxes for batch of images (prediction).
+    Is replaced by visualize_predictions.
 
     Args:
         path (str): Image data path
@@ -654,6 +723,130 @@ def visualize_predictions(path: str, mode: str, model: tf.keras.Model,
 
     plt.savefig(os.path.join(cfg.TRAINED_MODEL_PATH, f"{mode}_predictions.png"),
                 bbox_inches="tight")
+
+
+def visualize_predictions(path:str, mode: str, model: tf.keras.Model, 
+                          seed: int, n_examples=3, threshold=0.50):
+    """Visualize bounding boxes for batch of images (prediction).
+
+    Args:
+        path (str): Image data path
+        mode (str): Training or validation mode
+        model (tf.keras.Model): TensorFlow model
+        seed (int): Seed for replication
+        n_examples (int, optional): Number of logs to visualize. Defaults to 3.
+        threshold (float, optional): Threshold for prediction confidence. 
+            Defaults to 0.50.
+    """
+    # dynamically create subplots based on n_examples
+    columns = 3
+    rows = n_examples // columns
+    if n_examples % columns != 0:
+        rows += 1
+    pos = range(1, n_examples + 1)
+
+    input_image_size = cfg.IMAGE_SIZE
+    model_fn = model.signatures['serving_default']
+
+    category_index, tf_ex_decoder = get_ex_decoder()
+
+    data = tf.data.TFRecordDataset(
+        path).shuffle(
+        buffer_size=cfg.EVAL_EXAMPLES, seed=seed).take(n_examples)
+
+    plt.figure(figsize=(20, 20))
+    for i, serialized_example in enumerate(data):
+        plt.subplot(rows, columns, pos[i])
+        decoded_tensors = tf_ex_decoder.decode(serialized_example)
+        image = build_inputs_for_object_detection(
+            decoded_tensors['image'], input_image_size)
+        image = tf.expand_dims(image, axis=0)
+        image = tf.cast(image, dtype=tf.uint8)
+        image_np = image[0].numpy()
+        result = model_fn(image)
+
+        scores = result['detection_scores'][0].numpy()
+
+        bbox_pred = result['detection_boxes'][0].numpy()
+        bbox_pred = bbox_pred[scores > threshold]
+
+        y_pred = result['detection_classes'][0].numpy().astype(int)
+        y_pred = y_pred[scores > threshold]
+
+        visualize_boxes_and_labels(image=image_np,
+                                   bboxes=bbox_pred,
+                                   labels=y_pred,
+                                   score=result['detection_scores'][0].numpy(),
+                                   category_index=category_index,
+                                   is_groundtruth=False)
+        visualize_boxes_and_labels(image=image_np,
+                                   bboxes=decoded_tensors['groundtruth_boxes'].numpy(
+                                   ),
+                                   labels=decoded_tensors['groundtruth_classes'].numpy().astype(
+                                       int),
+                                   score=None,
+                                   category_index=category_index,
+                                   is_groundtruth=True)
+        plt.imshow(image_np)
+        plt.axis('off')
+
+    plt.savefig(os.path.join(cfg.TRAINED_MODEL_PATH, f"{mode}_predictions.png"),
+                bbox_inches="tight")
+
+
+def visualize_boxes_and_labels(image: np.ndarray, bboxes: list, labels: list, 
+                               score: list, category_index: dict, is_groundtruth: bool):
+    """Visualize bounding boxes and the corresponding labels.
+
+    Args:
+        image (np.ndarray): Image as numpy array
+        bboxes (list): Bounding boxes
+        labels (list): Corresponding labels
+        score (list): Prediction confidence values, optional
+        category_index (dict): Mapping of numerical to categorical label
+        is_groundtruth (bool): Indicating whether values are from 
+            groundtruth or prediction
+    """
+    ax = plt.gca()
+
+    for i, (box, cls) in enumerate(zip(bboxes, labels)):
+
+        tx1, ty1, x2, y2 = box
+
+        if is_groundtruth:
+            text = "{}: GT".format(category_index[cls]["name"])
+            edgecolor = "black"
+
+            im_height, im_width, _ = image.shape
+
+            tx1, ty1, x2, y2 = (tx1 * im_width, ty1 * im_height,
+                                x2 * im_width, y2 * im_height)
+            text_pos = y2 + (image.shape[0]*0.03)
+        else:
+            text = "{}: {}%".format(
+                category_index[cls]["name"], np.round(score[i] * 100, 0))
+            text_pos = ty1 - (image.shape[0]*0.02)
+            edgecolor = category_index[cls]["color"]
+
+        # width (w) = xmax - xmin ; height (h) = ymax - ymin
+        tw, th = x2 - tx1, y2 - ty1
+
+        patch = plt.Rectangle(
+            [tx1, ty1], tw, th, fill=False, edgecolor=edgecolor, linewidth=1
+        )
+        ax.add_patch(patch)
+        ax.text(
+            tx1,
+            text_pos,
+            text,
+            bbox={"facecolor": edgecolor, "alpha": 0.75, "linewidth": 0},
+            clip_box=ax.clipbox,
+            clip_on=True,
+            fontsize=8,
+            # verticalalignment='top',
+            color="white",
+            weight='bold'
+        )
 
 
 def build_inputs_for_object_detection(image, input_image_size):
@@ -866,12 +1059,13 @@ def get_all_numbers_of_traces_per_log():
     """
     files = get_event_log_paths()
     number_per_log = {}
-    for name, path in files.items():
+    for name, path in tqdm(files.items(), desc="Counting Traces from Event Logs",
+                           unit="Event Log"):
         log = pm.read_xes(os.path.join(path, name),
                           return_legacy_log_object=True)
         number_per_log[name] = len(log)
     number_of_traces_path = os.path.join(
-        cfg.DEFAULT_DATA_DIR, "number_of_traces.json")
+        cfg.TEST_IMAGE_DATA_DIR, "number_of_traces.json")
     with open(number_of_traces_path, "w", encoding='utf-8') as file:
         json.dump(number_per_log, file)
 
@@ -886,3 +1080,29 @@ def get_number_of_traces(event_log: EventLog) -> int:
         int: Number of traces
     """
     return len(event_log)
+
+
+def create_winsim_experiment(dir: str) -> str:
+    """Create experiment folder structure for WINSIM encoding.
+
+    Args:
+        dir (str): Path where experiment should be stored
+
+    Returns:
+        path: Experiment path
+    """
+    timestamp = get_timestamp()
+
+    exp_path = os.path.join(dir, "winsim", f"experiment_{timestamp}")
+    os.makedirs(exp_path)
+
+    print(f"Experiment created at {exp_path}")
+    return exp_path
+
+
+def check_dfg_graph_freq(log:pd.DataFrame) -> float:
+    graph, sa, ea = discover_dfg_typed(log)
+    
+    freq = sum(graph.values())
+    
+    return freq

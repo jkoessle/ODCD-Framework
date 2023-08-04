@@ -12,7 +12,6 @@ from cnn_approach.datasets import create_multilabel_dataset
 from predict import predict
 from tf_keras_vis.utils.scores import CategoricalScore, BinaryScore
 
-#TODO add more expresive statements during execution
 
 if __name__ == "__main__":
 
@@ -83,16 +82,16 @@ if __name__ == "__main__":
 
     if cfg.SAVE_MODEL:
         model.save(os.path.join(out_path, f"{cfg.MODEL_SELECTION}_{date}.h5"))
+        
+    if cfg.CHECKPOINTS:
+        best_model = tf.keras.models.load_model(cfg.MODEL_PATH)
+    else:
+        best_model = model
 
     if cfg.XAI_VIS:
         labels = cfg.DRIFT_TYPES
 
         images = []
-
-        if cfg.CHECKPOINTS:
-            best_model = tf.keras.models.load_model(cfg.MODEL_PATH)
-        else:
-            best_model = model
 
         if cfg.MULTILABEL:
             images, image_labels = utils.get_multilabel_samples(val_ds)

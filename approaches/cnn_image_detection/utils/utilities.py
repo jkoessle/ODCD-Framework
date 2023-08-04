@@ -16,6 +16,7 @@ from deprecated import deprecated
 from pathlib import Path
 from sklearn.preprocessing import MultiLabelBinarizer
 from itertools import combinations, chain, tee
+from pm4py.objects.log.exporter.xes import exporter as xes_exporter
 
 
 def get_event_log_paths(dir):
@@ -259,3 +260,25 @@ def get_powerset(set_list: list):
     count = get_powerset_length(count_it)
 
     return list(powerset), count
+
+
+def repair_noise_logs(dir: str, out_path: str):
+    """Adds missing trace IDs to event logs. 
+    Currently traces of noise logs in CDLG sometimes miss a trace ID.
+
+    Args:
+        dir (str): Log directory
+        out_path (str): Output directory
+    """
+    log_files = get_event_log_paths(dir)
+    
+    for name, path in log_files.items():
+
+        log = import_event_log(path, name)
+        
+        count = 1
+        for trace in log:
+            trace._set_attributes({'concept:name': str(count)})
+            count += 1
+
+        xes_exporter.apply(log, os.path.join(out_path, name))
