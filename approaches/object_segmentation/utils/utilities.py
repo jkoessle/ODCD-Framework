@@ -18,24 +18,88 @@ from official.core import exp_factory
 from official.core.config_definitions import ExperimentConfig
 from typing import Union, Tuple
 from pm4py.objects.log.obj import EventLog
+from pm4py.objects.log.importer.xes import importer as xes_importer
+from pm4py.algo.filtering.log.attributes import attributes_filter
 from official.vision.ops.preprocess_ops import resize_and_crop_image
+from pm4py import discover_dfg_typed
 
 
-def get_event_log_paths() -> dict:
+def get_event_log_paths(dir: str) -> dict:
     """Get event logs for directory.
+
+    Args:
+        dir (str): Log directory
 
     Returns:
         dict: Dictionary, containing names and paths of event logs
     """
     list_of_files = {}
-    for dir_path, dir_names, filenames in os.walk(cfg.DEFAULT_LOG_DIR):
+    for dir_path, dir_names, filenames in os.walk(dir):
         for filename in filenames:
             if filename.endswith('.xes'):
                 list_of_files[filename] = dir_path
 
-    assert len(list_of_files) > 0, f"{cfg.DEFAULT_LOG_DIR} is empty"
+    assert len(list_of_files) > 0, f"{dir} is empty"
 
     return list_of_files
+
+
+def import_event_log(path: str, name: str) -> EventLog:
+    """Read event log from path and return EventLog object.
+
+    Args:
+        path (str): Log path
+        name (str): Log name
+
+    Returns:
+        EventLog: Imported event log
+    """
+    variant = xes_importer.Variants.ITERPARSE
+    parameters = {variant.value.Parameters.TIMESTAMP_SORT: True,
+                  variant.value.Parameters.SHOW_PROGRESS_BAR: False}
+    event_log = xes_importer.apply(os.path.join(
+        path, name), variant=variant, parameters=parameters)
+
+    return event_log
+
+
+def filter_complete_events(log: EventLog) -> EventLog:
+    """Filter event log on complete events.
+
+    Args:
+        log (EventLog): Imported event log
+
+    Returns:
+        EventLog: Filtered event log
+    """
+    try:
+        filtered_log = attributes_filter.apply_events(log, ["complete", "COMPLETE"], 
+            parameters={
+            attributes_filter.Parameters.ATTRIBUTE_KEY: "lifecycle:transition",
+            attributes_filter.Parameters.POSITIVE: True})
+    except Exception:
+        filtered_log = log
+
+    return filtered_log
+
+
+def filter_complete_events_uppercase(log: EventLog) -> EventLog:
+    """Filter event log on complete events.
+
+    Args:
+        log (EventLog): Imported event log
+
+    Returns:
+        EventLog: Filtered event log
+    """
+    try:
+        filtered_log = attributes_filter.apply_events(log, ["COMPLETE"], parameters={
+            attributes_filter.Parameters.ATTRIBUTE_KEY: "lifecycle:transition",
+            attributes_filter.Parameters.POSITIVE: True})
+    except Exception:
+        filtered_log = log
+
+    return filtered_log
 
 
 def get_drift_coordinates(change_idx: list) -> list:
@@ -661,7 +725,8 @@ def visualize_predictions_old(path, mode, model, seed, n_examples=3, threshold=0
                 bbox_inches="tight")
 
 
-def visualize_predictions(path, mode, model, seed, n_examples=3, threshold=0.50):
+def visualize_predictions(path:str, mode: str, model: tf.keras.Model, 
+                          seed: int, n_examples=3, threshold=0.50):
     """Visualize bounding boxes for batch of images (prediction).
 
     Args:
@@ -1015,3 +1080,29 @@ def get_number_of_traces(event_log: EventLog) -> int:
         int: Number of traces
     """
     return len(event_log)
+
+
+def create_winsim_experiment(dir: str) -> str:
+    """Create experiment folder structure for WINSIM encoding.
+
+    Args:
+        dir (str): Path where experiment should be stored
+
+    Returns:
+        path: Experiment path
+    """
+    timestamp = get_timestamp()
+
+    exp_path = os.path.join(dir, "winsim", f"experiment_{timestamp}")
+    os.makedirs(exp_path)
+
+    print(f"Experiment created at {exp_path}")
+    return exp_path
+
+
+def check_dfg_graph_freq(log:pd.DataFrame) -> float:
+    graph, sa, ea = discover_dfg_typed(log)
+    
+    freq = sum(graph.values())
+    
+    return freq
