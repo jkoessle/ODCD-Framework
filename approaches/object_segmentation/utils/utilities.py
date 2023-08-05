@@ -824,7 +824,7 @@ def visualize_boxes_and_labels(image: np.ndarray, bboxes: list, labels: list,
             text_pos = y2 + (image.shape[0]*0.03)
         else:
             text = "{}: {}%".format(
-                category_index[cls]["name"], np.round(score[i] * 100, 0))
+                category_index[cls]["name"], int(np.round(score[i] * 100, 0)))
             text_pos = ty1 - (image.shape[0]*0.02)
             edgecolor = category_index[cls]["color"]
 

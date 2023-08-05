@@ -375,6 +375,7 @@ def predict(image_dir: str, output_path: str, model: tf.keras.Model,
         result = model_fn(image)
 
         scores = result['detection_scores'][0].numpy()
+        confidence_scores = scores[scores > threshold]
 
         bbox_pred = result['detection_boxes'][0].numpy()
         bbox_pred = bbox_pred[scores > threshold]
@@ -389,7 +390,7 @@ def predict(image_dir: str, output_path: str, model: tf.keras.Model,
                              image_name=image_name,
                              bbox_pred=bbox_pred,
                              y_pred=y_pred,
-                             score=scores)
+                             score=confidence_scores)
 
         if encoding_type == "winsim":
             bbox_pred = bbox_pred / targetsize \
@@ -410,6 +411,7 @@ def predict(image_dir: str, output_path: str, model: tf.keras.Model,
                                                                 targetsize=targetsize)
         pred_results[image_name] = \
             {"Detected Changepoints": pred_change_points,
-                "Detected Drift Types": y_pred_category}
+                "Detected Drift Types": y_pred_category,
+                "Prediction Confidence": np.round(confidence_scores, decimals=4)}
 
     save_pred_results(pred_results, output_path)

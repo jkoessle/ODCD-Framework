@@ -807,7 +807,9 @@ def create_evaluation_dir(path: str) -> str:
     Returns:
         str: Path of evaluation directory
     """
-    val_path = os.path.join(path, "evaluation", f"threshold_{cfg.EVAL_THRESHOLD}")
+    val_path = os.path.join(path, "evaluation", 
+                            f"{cfg.EVAL_MODE}", 
+                            f"threshold_{cfg.EVAL_THRESHOLD}")
     if not os.path.isdir(val_path):
         os.makedirs(val_path)
     return val_path

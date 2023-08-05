@@ -54,6 +54,8 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                   extent=[min_date, max_date, y_data.shape[0], 0], aspect='auto'
                   )
         plt.savefig(os.path.join(exp_path, f"{number}.jpg"))
+        x_max, y_max = ax.transAxes.transform((1.0, 1.0))
+        x_min, y_min = ax.transAxes.transform((0.0, 0.0))
     else:
         fig = plt.figure(figsize=(1, 1))
         ax = plt.Axes(fig, [0., 0., 1., 1.])
@@ -64,9 +66,9 @@ def vdd_draw_drift_map_with_clusters(data, number, exp_path, ts_ticks,
                   )
         fig.savefig(os.path.join(exp_path, f"{number}.jpg"),
                     dpi=y_data.shape[0])
+        x_min = y_min = 0
+        x_max = y_max = y_data.shape[0]
 
-    x_max, y_max = ax.transAxes.transform((1.0, 1.0))
-    x_min, y_min = ax.transAxes.transform((0.0, 0.0))
     fig_bbox = (x_min, y_min, x_max, y_max)
 
     bboxes = {}
