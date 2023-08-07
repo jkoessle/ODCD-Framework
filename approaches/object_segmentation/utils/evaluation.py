@@ -4,10 +4,15 @@ import pandas as pd
 import tensorflow as tf
 import numpy as np
 import datetime as dt
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from collections import defaultdict
 from tqdm import tqdm
 from typing import List, Tuple, Union
+from math import inf
+from sklearn.metrics import classification_report
+
 from . import config as cfg
 from . import utilities as utils
 from . import cdrift_evaluation as cdrift
@@ -15,17 +20,21 @@ from . import cdrift_evaluation as cdrift
 
 def get_evaluation_metrics(y_true: list, y_pred: list,
                            y_true_label: list, y_pred_label: list,
-                           factor: float, number_of_traces: int) -> dict:
+                           factor: float, number_of_traces: int) \
+                               -> Tuple[dict,list,list]:
     """Get all relevant evaluation metrics.
 
     Args:
         y_true (list): List of groundtruth values
         y_pred (list): List of prediction values
+        y_true_label (list): List of groundtruth labels
+        y_pred_label (list): List of predicted labels
         factor (float): Factor for relative lag
         number_of_traces (int): Number of traces for event log
 
     Returns:
-        dict: Dict, containing evaluation measures
+        Tuple[dict,list,list]: Dict, containing evaluation measures. 
+        And sorted lists containing predicted and groundtruth labels
     """
     lag = int(factor * number_of_traces)
 
@@ -35,6 +44,19 @@ def get_evaluation_metrics(y_true: list, y_pred: list,
 
     matched_assignments = match_labels(assignments, y_true, y_true_label,
                                        y_pred, y_pred_label)
+    
+    if len(matched_assignments) > 0:
+        preds, trues = zip(*matched_assignments)
+    else:
+        preds = trues = []
+    
+    sorted_trues = sorted(y_true, key=lambda x: trues.index(x) if x in trues else inf) 
+    
+    y_pred_label_sorted = [y_pred_label[y_pred.index(x)] for x in preds]
+    y_true_label_sorted = [y_true_label[y_true.index(x)] for x in sorted_trues]
+    
+    while len(y_pred_label_sorted) < len(y_true_label_sorted):
+        y_pred_label_sorted.append(np.NaN)
 
     tp = len(matched_assignments)
     fp = len(y_pred) - tp
@@ -46,7 +68,7 @@ def get_evaluation_metrics(y_true: list, y_pred: list,
                "precision": precision,
                "recall": recall,
                "lag": average_lag}
-    return metrics
+    return metrics, y_pred_label_sorted, y_true_label_sorted
 
 
 def match_labels(assignments: list, y_true: list, y_true_labels: list,
@@ -221,12 +243,13 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
                                                                     min_date),
                                                                 max_date=str_2_date(max_date))
         for lag_factor in cfg.RELATIVE_LAG:
-            metrics = get_evaluation_metrics(y_true=true_change_points,
-                                             y_pred=pred_change_points,
-                                             y_true_label=y_true_category,
-                                             y_pred_label=y_pred_category,
-                                             factor=lag_factor,
-                                             number_of_traces=traces_per_log[log_name])
+            metrics, y_pred_sorted, y_true_sorted = get_evaluation_metrics(
+                y_true=true_change_points,
+                y_pred=pred_change_points,
+                y_true_label=y_true_category,
+                y_pred_label=y_pred_category,
+                factor=lag_factor,
+                number_of_traces=traces_per_log[log_name])
 
             str_lag = f"lag_{lag_factor}"
 
@@ -238,13 +261,16 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
                  "F1-Score": metrics["f1"],
                  "Precision": metrics["precision"],
                  "Recall": metrics["recall"],
-                 "Average Lag": metrics["lag"]
+                 "Average Lag": metrics["lag"],
+                 "y_pred_sorted": y_pred_sorted,
+                 "y_true_sorted": y_true_sorted
                  }
     eval_results = dict(eval_results)
     for lag_factor in cfg.RELATIVE_LAG:
         str_lag = f"lag_{lag_factor}"
         results_df = save_results(eval_results[str_lag], lag_factor, val_path)
         print_measures(results_df, traces_per_log, lag_factor, val_path)
+        plot_classification_report(results_df, val_path, lag_factor)
 
 
 def get_image_paths(dir: str) -> dict:
@@ -813,3 +839,32 @@ def create_evaluation_dir(path: str) -> str:
     if not os.path.isdir(val_path):
         os.makedirs(val_path)
     return val_path
+
+
+def plot_classification_report(results: pd.DataFrame, path: str, lag_factor: float):
+    """Plot classification report.
+
+    Args:
+        results (pd.DataFrame): Evaluation results
+        path (str): Save path
+        lag_factor (float): Lag factor used
+    """
+    y_trues = results["y_true_sorted"].to_numpy()
+    y_preds = results["y_pred_sorted"].to_numpy()
+
+    y_trues_flat = [elem for sub in y_trues for elem in sub]
+    y_preds_flat = [elem for sub in y_preds for elem in sub]
+
+    c_r = classification_report(
+        y_trues_flat, y_preds_flat, labels=np.unique(y_trues_flat), output_dict=True)
+
+    # exclude support from clf report with iloc
+    clf_r = sns.heatmap(pd.DataFrame(
+        c_r).iloc[:-1, :].T, cmap="YlGn", annot=True, cbar=False)
+    clf_r_fig = clf_r.get_figure()
+    save_path = os.path.join(
+        path, f"classification_report_{cfg.EVAL_MODE}_{lag_factor}_lag.png")
+    clf_r_fig.tight_layout()
+    clf_r_fig.savefig(save_path)
+    print(f"Classification report is saved at: {save_path}")
+    plt.close(clf_r_fig)
