@@ -1,5 +1,8 @@
 import os
 import json
+import shutil
+import subprocess
+import signal
 import pandas as pd
 import tensorflow as tf
 import numpy as np
@@ -868,3 +871,77 @@ def plot_classification_report(results: pd.DataFrame, path: str, lag_factor: flo
     clf_r_fig.savefig(save_path)
     print(f"Classification report is saved at: {save_path}")
     plt.close(clf_r_fig)
+    
+    
+def call_pro_drift(log_path: str, pro_drift_dir: str, 
+                   window_size: int) -> Tuple[bytes, bytes]:
+    """Call ProDrift for evaluation purposes.
+
+    Args:
+        log_path (str): Logs to evaluate
+        pro_drift_dir (str): Directory of ProDrift distribution
+        window_size (int): Window size for ProDrift
+
+    Returns:
+        Tuple[bytes, bytes]: Process output and error log
+    """
+    env = dict(os.environ)
+    env['JAVA_OPTS'] = 'foo'
+    
+    cmd = f"java -jar ProDrift2.5.jar -fp {log_path} \
+        -ddm runs -ws {window_size} -gradual"
+    
+    if cfg.WINDOWS_SYSTEM:
+        p = subprocess.Popen(cmd, 
+                             stdout=subprocess.PIPE, 
+                             shell=True, 
+                             cwd=pro_drift_dir, 
+                             env=env)
+        try:
+            outs, errs = p.communicate(timeout=15)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            outs, errs = p.communicate()
+    else:
+        p = subprocess.Popen(cmd, 
+                             stdout=subprocess.PIPE, 
+                             cwd=pro_drift_dir, 
+                             shell=True, 
+                             env=env, 
+                             preexec_fn=os.setsid)
+        os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+    return outs, errs
+    
+
+def call_vdd(log_dir: str, vdd_dir: str):
+    """Call VDD for evaluation purposes.
+
+    Args:
+        log_dir (str): Logs to evaluate
+        vdd_dir (str): Directory of VDD distribution
+    """
+    vdd_data_input_dir = os.path.join(vdd_dir, "data", "data_input")
+    
+    if vdd_data_input_dir != log_dir:
+        print("Copying log files to VDD data directory.")
+        shutil.copytree(log_dir, vdd_data_input_dir)
+    
+    files = []
+    for (dirpath, dirnames, filenames) in os.walk(vdd_data_input_dir):
+        files.extend(filenames)
+        break
+
+    filenames = [elem.split(".")[0] for elem in files]
+
+    for filename in filenames:
+        cmd = f"python -m src.scenario_1 -logName {filename} \
+            -subL 100 -sliBy 50 -driftAll"
+        p = subprocess.Popen(cmd, 
+                             stdout=subprocess.PIPE, 
+                             cwd="/ceph/jkoessle/Process-Drift-Visualization-With-Declare", 
+                             shell=True)
+        try:
+            outs, errs = p.communicate()
+        except subprocess.TimeoutExpired:
+            p.kill()
+            outs, errs = p.communicate()

@@ -103,3 +103,5 @@ CP_ALL = True
 ##### EVALUATION CONFIG #####
 RELATIVE_LAG = [0.01, 0.025, 0.05, 0.1, 0.15, 0.2]
 EVAL_MODE = "general"
+PRODRIFT_DIR = "Specify directory where ProDrift is stored"
+VDD_DIR = "Specify directory where VDD is stored"
