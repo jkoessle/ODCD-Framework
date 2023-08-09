@@ -1,5 +1,6 @@
 import os
 import re
+import ast
 import json
 import shutil
 import subprocess
@@ -25,7 +26,7 @@ from . import cdrift_evaluation as cdrift
 def get_evaluation_metrics(y_true: list, y_pred: list,
                            y_true_label: list, y_pred_label: list,
                            factor: float, number_of_traces: int) \
-                               -> Tuple[dict,list,list]:
+        -> Tuple[dict, list, list]:
     """Get all relevant evaluation metrics.
 
     Args:
@@ -48,17 +49,18 @@ def get_evaluation_metrics(y_true: list, y_pred: list,
 
     matched_assignments = match_labels(assignments, y_true, y_true_label,
                                        y_pred, y_pred_label)
-    
+
     if len(matched_assignments) > 0:
         preds, trues = zip(*matched_assignments)
     else:
         preds = trues = []
-    
-    sorted_trues = sorted(y_true, key=lambda x: trues.index(x) if x in trues else inf) 
-    
+
+    sorted_trues = sorted(
+        y_true, key=lambda x: trues.index(x) if x in trues else inf)
+
     y_pred_label_sorted = [y_pred_label[y_pred.index(x)] for x in preds]
     y_true_label_sorted = [y_true_label[y_true.index(x)] for x in sorted_trues]
-    
+
     while len(y_pred_label_sorted) < len(y_true_label_sorted):
         y_pred_label_sorted.append(np.NaN)
 
@@ -92,11 +94,12 @@ def match_labels(assignments: list, y_true: list, y_true_labels: list,
     Returns:
         list: Label-matched assignments
     """
+    matched_assignments = []
     for assignment in assignments:
         pred, true = assignment
-        if y_pred_labels[y_pred.index(pred)] != y_true_labels[y_true.index(true)]:
-            assignments.remove(assignment)
-    return assignments
+        if y_pred_labels[y_pred.index(pred)] == y_true_labels[y_true.index(true)]:
+            matched_assignments.append(assignment)
+    return matched_assignments
 
 
 def get_precision(tp: int, fp: int) -> float:
@@ -221,8 +224,8 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
         min_date, max_date = date_info[log_name]
 
         scores = result['detection_scores'][0].numpy()
-        
-        # For mysterious reasons the TensorFlow bbox format is 
+
+        # For mysterious reasons the TensorFlow bbox format is
         # [y_min, x_min, y_max, x_max]
         bbox_pred = result['detection_boxes'][0].numpy()
         bbox_pred = bbox_pred[scores > threshold]
@@ -839,8 +842,8 @@ def create_evaluation_dir(path: str) -> str:
     Returns:
         str: Path of evaluation directory
     """
-    val_path = os.path.join(path, "evaluation", 
-                            f"{cfg.EVAL_MODE}", 
+    val_path = os.path.join(path, "evaluation",
+                            f"{cfg.EVAL_MODE}",
                             f"threshold_{cfg.EVAL_THRESHOLD}")
     if not os.path.isdir(val_path):
         os.makedirs(val_path)
@@ -874,9 +877,9 @@ def plot_classification_report(results: pd.DataFrame, path: str, lag_factor: flo
     clf_r_fig.savefig(save_path)
     print(f"Classification report is saved at: {save_path}")
     plt.close(clf_r_fig)
-    
-    
-def call_pro_drift(log_path: str, pro_drift_dir: str, 
+
+
+def call_pro_drift(log_path: str, pro_drift_dir: str,
                    window_size: int) -> Tuple[bytes, bytes]:
     """Call ProDrift for evaluation purposes.
 
@@ -890,15 +893,15 @@ def call_pro_drift(log_path: str, pro_drift_dir: str,
     """
     env = dict(os.environ)
     env['JAVA_OPTS'] = 'foo'
-    
+
     cmd = f"java -jar ProDrift2.5.jar -fp {log_path} \
         -ddm runs -ws {window_size} -gradual"
-    
+
     if cfg.WINDOWS_SYSTEM:
-        p = subprocess.Popen(cmd, 
-                             stdout=subprocess.PIPE, 
-                             shell=True, 
-                             cwd=pro_drift_dir, 
+        p = subprocess.Popen(cmd,
+                             stdout=subprocess.PIPE,
+                             shell=True,
+                             cwd=pro_drift_dir,
                              env=env)
         try:
             outs, errs = p.communicate(timeout=15)
@@ -906,15 +909,15 @@ def call_pro_drift(log_path: str, pro_drift_dir: str,
             p.kill()
             outs, errs = p.communicate()
     else:
-        p = subprocess.Popen(cmd, 
-                             stdout=subprocess.PIPE, 
-                             cwd=pro_drift_dir, 
-                             shell=True, 
-                             env=env, 
+        p = subprocess.Popen(cmd,
+                             stdout=subprocess.PIPE,
+                             cwd=pro_drift_dir,
+                             shell=True,
+                             env=env,
                              preexec_fn=os.setsid)
         os.killpg(os.getpgid(p.pid), signal.SIGTERM)
     return outs, errs
-    
+
 
 def call_vdd(log_dir: str, vdd_dir: str):
     """Call VDD for evaluation purposes.
@@ -924,11 +927,11 @@ def call_vdd(log_dir: str, vdd_dir: str):
         vdd_dir (str): Directory of VDD distribution
     """
     vdd_data_input_dir = os.path.join(vdd_dir, "data", "data_input")
-    
+
     if vdd_data_input_dir != log_dir:
         print("Copying log files to VDD data directory.")
         shutil.copytree(log_dir, vdd_data_input_dir)
-    
+
     files = []
     for (dirpath, dirnames, filenames) in os.walk(vdd_data_input_dir):
         files.extend(filenames)
@@ -939,16 +942,16 @@ def call_vdd(log_dir: str, vdd_dir: str):
     for filename in filenames:
         cmd = f"python -m src.scenario_1 -logName {filename} \
             -subL 100 -sliBy 50 -driftAll"
-        p = subprocess.Popen(cmd, 
-                             stdout=subprocess.PIPE, 
-                             cwd="/ceph/jkoessle/Process-Drift-Visualization-With-Declare", 
+        p = subprocess.Popen(cmd,
+                             stdout=subprocess.PIPE,
+                             cwd="/ceph/jkoessle/Process-Drift-Visualization-With-Declare",
                              shell=True)
         try:
             outs, errs = p.communicate()
         except subprocess.TimeoutExpired:
             p.kill()
             outs, errs = p.communicate()
-            
+
 
 def excel_2_csv(excel_path: str, csv_path: str):
     """Convert Excel file to CSV format.
@@ -958,8 +961,8 @@ def excel_2_csv(excel_path: str, csv_path: str):
         csv_path (str): Output path for CSV file
     """
     excel_file = pd.read_excel(excel_path)
-    excel_file.to_csv(csv_path, index = None, header=True, sep=",", encoding="utf-8")
-    
+    excel_file.to_csv(csv_path, index=None, header=True,
+                      sep=",", encoding="utf-8")
 
 
 def preprocess_pro_drift_results(results_path: str):
@@ -984,10 +987,10 @@ def preprocess_pro_drift_results(results_path: str):
         tuples_list.append(integers)
     results_df["change_trace_idx"] = tuples_list
 
-    results_df.to_csv(results_path, index = None, header=True, 
+    results_df.to_csv(results_path, index=None, header=True,
                       sep=",", encoding="utf-8")
-    
-    
+
+
 def evaluate_pro_drift_results(results_file_path: str, data_dir: str):
     """Evaluate ProDrift with score measures.
 
@@ -996,21 +999,37 @@ def evaluate_pro_drift_results(results_file_path: str, data_dir: str):
         data_dir (str): Test data dir
     """
     results_df = pd.read_csv(results_file_path, sep=",", encoding="utf-8")
+    results_df["change_trace_idx"] = results_df.loc[
+        results_df["change_trace_idx"].notnull(), "change_trace_idx"
+        ].apply(lambda x: ast.literal_eval(x))
     drift_info = get_drift_info(data_dir)
     traces_per_log = get_traces_per_log(data_dir)
     eval_results = defaultdict(lambda: defaultdict(dict))
     log_names = results_df["log_name"]
-    
-    val_path = os.path.abspath(os.path.join("evaluation_results","ProDrift"))
-    
+
+    val_path = os.path.abspath(os.path.join("evaluation_results", "ProDrift"))
+
     for log_name in log_names:
         log_info = get_log_info(log_name, drift_info)
         pred_change_points = results_df["change_trace_idx"].loc[
-            results_df["log_name"] == log_name].to_numpy()
-        true_change_points = get_true_changepoints_trace_idx(log_info).tolist()
+            results_df["log_name"] == log_name].tolist()
+        if str(pred_change_points[0]) == "nan":
+            pred_change_points = []
+        else:
+            pred_change_points = [
+                elem for sub in pred_change_points for elem in sub]
+
+        true_change_points = get_true_changepoints_trace_idx(log_info)
+
         y_true_category = get_true_classes(log_info)
         y_pred_category = results_df["drift_types"].loc[
             results_df["log_name"] == log_name].to_numpy().tolist()
+        if str(y_pred_category[0]) == "nan":
+            y_pred_category = []
+        else:
+            y_pred_category = [x.strip()
+                               for x in y_pred_category[0].split(",")]
+
         for lag_factor in cfg.RELATIVE_LAG:
             metrics, y_pred_sorted, y_true_sorted = get_evaluation_metrics(
                 y_true=true_change_points,

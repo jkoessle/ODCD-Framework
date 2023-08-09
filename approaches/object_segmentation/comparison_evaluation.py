@@ -42,8 +42,12 @@ if __name__ == "__main__":
     # start_vdd_evaluation()
     
     # Transformations for results from ProDrift
-    xslx_path = "evaluation_results\ProDrift\prodrift_results_manual.xlsx"
-    csv_path = "evaluation_results\ProDrift\drift_info.csv"
+    xslx_path = os.path.abspath(os.path.join("evaluation_results", 
+                                "ProDrift", 
+                                "prodrift_results_manual.xlsx"))
+    csv_path = os.path.abspath(os.path.join("evaluation_results", 
+                                "ProDrift", 
+                                "prodrift_results.csv"))
     # eval.excel_2_csv(xslx_path, csv_path)
     # eval.preprocess_pro_drift_results(csv_path)
     
