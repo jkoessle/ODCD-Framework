@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import shutil
 import subprocess
@@ -220,7 +221,9 @@ def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
         min_date, max_date = date_info[log_name]
 
         scores = result['detection_scores'][0].numpy()
-
+        
+        # For mysterious reasons the TensorFlow bbox format is 
+        # [y_min, x_min, y_max, x_max]
         bbox_pred = result['detection_boxes'][0].numpy()
         bbox_pred = bbox_pred[scores > threshold]
 
@@ -424,10 +427,10 @@ def get_changepoints_timestamp_winsim(bboxes: list, y_pred: list,
         if y_pred[i] == "sudden":
             # changepoint is equal to the date of the first trace in the middle
             # window of bbox
-            change_point = get_sudden_changepoint_winsim(int(bbox[0]))
+            change_point = get_sudden_changepoint_winsim(int(bbox[1]))
         else:
             # changepoint is equal to the date of the first trace in window
-            change_point = int(bbox[0])
+            change_point = int(bbox[1])
         change_point_date = dt.datetime.strptime(window_info[str(change_point)][-1],
                                                  "%y-%m-%d").date()
         change_points.append(change_point_date)
@@ -454,15 +457,15 @@ def get_changepoints_trace_idx_winsim(bboxes: list, y_pred: list,
             if y_pred[i] == "sudden":
                 # changepoint is equal to the date of the first trace in the middle
                 # window of bbox
-                change_point = get_sudden_changepoint_winsim(round(bbox[0]))
+                change_point = get_sudden_changepoint_winsim(round(bbox[1]))
                 change_point_trace_id = (int(window_info[str(change_point)][0]),
                                          int(window_info[str(change_point)][0]))
             else:
                 # change start and end is equal to the date of the first trace in window
                 # set window id of change start to at least 1 for edge cases
                 # set window id of change end to maximum 200 for edge cases
-                change_start = (1 if round(bbox[0]) < 1 else round(bbox[0]))
-                change_end = (200 if round(bbox[2]) > 200 else round(bbox[2]))
+                change_start = (1 if round(bbox[1]) < 1 else round(bbox[1]))
+                change_end = (200 if round(bbox[3]) > 200 else round(bbox[3]))
                 change_point_trace_id = (int(window_info[str(change_start)][0]),
                                          int(window_info[str(change_end)][0]))
             change_points.append(change_point_trace_id)
@@ -489,9 +492,9 @@ def get_changepoints_timestamp_vdd(bboxes: list, y_pred: list,
     day_delta = max_date - min_date
     for i, bbox in enumerate(bboxes):
         if y_pred[i] == "sudden":
-            xmin = get_sudden_changepoint_vdd(int(bbox[0]))
+            xmin = get_sudden_changepoint_vdd(int(bbox[1]))
         else:
-            xmin = bbox[0]
+            xmin = bbox[1]
         relative_xmin = xmin / cfg.TARGETSIZE
         change_point_date = min_date + dt.timedelta(days=int(day_delta.days *
                                                              relative_xmin))
@@ -525,7 +528,7 @@ def get_changepoints_trace_idx_vdd(bboxes: list, y_pred: list,
         day_delta = max_date - min_date
         for i, bbox in enumerate(bboxes):
             if y_pred[i] == "sudden":
-                xmin = get_sudden_changepoint_vdd(int(bbox[0]))
+                xmin = get_sudden_changepoint_vdd(int(bbox[1]))
                 relative_xmin = xmin / cfg.TARGETSIZE
                 change_point_date = min_date + dt.timedelta(days=int(day_delta.days *
                                                                      relative_xmin))
@@ -533,8 +536,8 @@ def get_changepoints_trace_idx_vdd(bboxes: list, y_pred: list,
                                                         timestamps_per_trace)
                 change_point_index = (closest_trace, closest_trace)
             else:
-                xmin = bbox[0]
-                xmax = bbox[2]
+                xmin = bbox[1]
+                xmax = bbox[3]
                 relative_xmin = xmin / cfg.TARGETSIZE
                 relative_xmax = xmax / cfg.TARGETSIZE
                 change_start_date = min_date + dt.timedelta(days=int(day_delta.days *
@@ -945,3 +948,95 @@ def call_vdd(log_dir: str, vdd_dir: str):
         except subprocess.TimeoutExpired:
             p.kill()
             outs, errs = p.communicate()
+            
+
+def excel_2_csv(excel_path: str, csv_path: str):
+    """Convert Excel file to CSV format.
+
+    Args:
+        excel_path (str): Path of Excel file
+        csv_path (str): Output path for CSV file
+    """
+    excel_file = pd.read_excel(excel_path)
+    excel_file.to_csv(csv_path, index = None, header=True, sep=",", encoding="utf-8")
+    
+
+
+def preprocess_pro_drift_results(results_path: str):
+    """Transform changepoints into tuples. 
+    Caution: Overwrites given CSV file. 
+    Gradual drifts and their change points must be handled manually after this process, 
+    since their change points are unfortunately split into two tuples.
+
+    Args:
+        results_path (str): CSV filepath of results file
+    """
+    results_df = pd.read_csv(results_path)
+    trace_idx = results_df["change_trace_idx"].to_numpy()
+    tuples_list = []
+    for elem in trace_idx:
+        if str(elem) == "nan":
+            tuples_list.append(np.NaN)
+            continue
+        integers = [int(s) for s in re.findall(r'\b\d+\b', elem)]
+        for i, integer in enumerate(integers):
+            integers[i] = (integer, integer)
+        tuples_list.append(integers)
+    results_df["change_trace_idx"] = tuples_list
+
+    results_df.to_csv(results_path, index = None, header=True, 
+                      sep=",", encoding="utf-8")
+    
+    
+def evaluate_pro_drift_results(results_file_path: str, data_dir: str):
+    """Evaluate ProDrift with score measures.
+
+    Args:
+        results_file_path (str): Results file
+        data_dir (str): Test data dir
+    """
+    results_df = pd.read_csv(results_file_path, sep=",", encoding="utf-8")
+    drift_info = get_drift_info(data_dir)
+    traces_per_log = get_traces_per_log(data_dir)
+    eval_results = defaultdict(lambda: defaultdict(dict))
+    log_names = results_df["log_name"]
+    
+    val_path = os.path.abspath(os.path.join("evaluation_results","ProDrift"))
+    
+    for log_name in log_names:
+        log_info = get_log_info(log_name, drift_info)
+        pred_change_points = results_df["change_trace_idx"].loc[
+            results_df["log_name"] == log_name].to_numpy()
+        true_change_points = get_true_changepoints_trace_idx(log_info).tolist()
+        y_true_category = get_true_classes(log_info)
+        y_pred_category = results_df["drift_types"].loc[
+            results_df["log_name"] == log_name].to_numpy().tolist()
+        for lag_factor in cfg.RELATIVE_LAG:
+            metrics, y_pred_sorted, y_true_sorted = get_evaluation_metrics(
+                y_true=true_change_points,
+                y_pred=pred_change_points,
+                y_true_label=y_true_category,
+                y_pred_label=y_pred_category,
+                factor=lag_factor,
+                number_of_traces=traces_per_log[log_name])
+
+            str_lag = f"lag_{lag_factor}"
+
+            eval_results[str_lag][log_name] = \
+                {"Detected Changepoints": pred_change_points,
+                 "Actual Changepoints": true_change_points,
+                 "Predicted Drift Types": y_pred_category,
+                 "Actual Drift Types": y_true_category,
+                 "F1-Score": metrics["f1"],
+                 "Precision": metrics["precision"],
+                 "Recall": metrics["recall"],
+                 "Average Lag": metrics["lag"],
+                 "y_pred_sorted": y_pred_sorted,
+                 "y_true_sorted": y_true_sorted
+                 }
+    eval_results = dict(eval_results)
+    for lag_factor in cfg.RELATIVE_LAG:
+        str_lag = f"lag_{lag_factor}"
+        results_df = save_results(eval_results[str_lag], lag_factor, val_path)
+        print_measures(results_df, traces_per_log, lag_factor, val_path)
+        plot_classification_report(results_df, val_path, lag_factor)

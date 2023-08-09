@@ -37,6 +37,16 @@ if __name__ == "__main__":
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = ""
     
-    start_pro_drift_evaluation()
-    start_vdd_evaluation()
+    # Handles to start evaluation per tool
+    # start_pro_drift_evaluation()
+    # start_vdd_evaluation()
+    
+    # Transformations for results from ProDrift
+    xslx_path = "evaluation_results\ProDrift\prodrift_results_manual.xlsx"
+    csv_path = "evaluation_results\ProDrift\drift_info.csv"
+    # eval.excel_2_csv(xslx_path, csv_path)
+    # eval.preprocess_pro_drift_results(csv_path)
+    
+    eval.evaluate_pro_drift_results(results_file_path=csv_path, 
+                                    data_dir=cfg.TEST_IMAGE_DATA_DIR)
     

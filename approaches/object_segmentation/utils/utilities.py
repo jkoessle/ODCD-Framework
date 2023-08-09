@@ -811,7 +811,8 @@ def visualize_boxes_and_labels(image: np.ndarray, bboxes: list, labels: list,
 
     for i, (box, cls) in enumerate(zip(bboxes, labels)):
 
-        tx1, ty1, x2, y2 = box
+        # For mysterious reasons the TensorFlow format is [y_min, x_min, y_max, x_max]
+        ty1, tx1, y2, x2 = box
 
         if is_groundtruth:
             text = "{}: GT".format(category_index[cls]["name"])
