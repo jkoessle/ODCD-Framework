@@ -22,7 +22,8 @@ def visualize_bboxes(model: tf.keras.Model):
                                 mode="validation",
                                 model=model,
                                 seed=seed,
-                                threshold=cfg.EVAL_THRESHOLD)
+                                threshold=cfg.EVAL_THRESHOLD,
+                                encoding="winsim")
 
 
 if __name__ == "__main__":

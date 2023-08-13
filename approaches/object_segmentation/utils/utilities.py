@@ -651,6 +651,7 @@ def visualize_batch(path: str, mode: str, seed: int, n_examples=3):
 
     plt.savefig(os.path.join(cfg.TRAINED_MODEL_PATH, f"{mode}_batch.png"),
                 bbox_inches="tight")
+    plt.close()
     
     
 def visualize_predictions_old(path, mode, model, seed, n_examples=3, threshold=0.50):
@@ -726,7 +727,8 @@ def visualize_predictions_old(path, mode, model, seed, n_examples=3, threshold=0
 
 
 def visualize_predictions(path:str, mode: str, model: tf.keras.Model, 
-                          seed: int, n_examples=3, threshold=0.50):
+                          seed: int, n_examples=3, threshold=0.50,
+                          encoding="winsim"):
     """Visualize bounding boxes for batch of images (prediction).
 
     Args:
@@ -778,7 +780,8 @@ def visualize_predictions(path:str, mode: str, model: tf.keras.Model,
                                    labels=y_pred,
                                    score=result['detection_scores'][0].numpy(),
                                    category_index=category_index,
-                                   is_groundtruth=False)
+                                   is_groundtruth=False,
+                                   encoding=encoding)
         visualize_boxes_and_labels(image=image_np,
                                    bboxes=decoded_tensors['groundtruth_boxes'].numpy(
                                    ),
@@ -786,16 +789,19 @@ def visualize_predictions(path:str, mode: str, model: tf.keras.Model,
                                        int),
                                    score=None,
                                    category_index=category_index,
-                                   is_groundtruth=True)
+                                   is_groundtruth=True,
+                                   encoding=encoding)
         plt.imshow(image_np)
         plt.axis('off')
 
     plt.savefig(os.path.join(cfg.TRAINED_MODEL_PATH, f"{mode}_predictions.png"),
                 bbox_inches="tight")
+    plt.close()
 
 
 def visualize_boxes_and_labels(image: np.ndarray, bboxes: list, labels: list, 
-                               score: list, category_index: dict, is_groundtruth: bool):
+                               score: list, category_index: dict, is_groundtruth: bool,
+                               encoding="winsim"):
     """Visualize bounding boxes and the corresponding labels.
 
     Args:
@@ -823,10 +829,18 @@ def visualize_boxes_and_labels(image: np.ndarray, bboxes: list, labels: list,
             tx1, ty1, x2, y2 = (tx1 * im_width, ty1 * im_height,
                                 x2 * im_width, y2 * im_height)
             text_pos = y2 + (image.shape[0]*0.03)
+            if encoding == "winsim":
+                text_pos = y2 + (image.shape[0]*0.03)
+            else:
+                text_pos = y2 - (image.shape[0]*0.03)
         else:
             text = "{}: {}%".format(
                 category_index[cls]["name"], int(np.round(score[i] * 100, 0)))
             text_pos = ty1 - (image.shape[0]*0.02)
+            if encoding == "winsim":
+                text_pos = ty1 - (image.shape[0]*0.02)
+            else:
+                text_pos = ty1 + (image.shape[0]*0.03)
             edgecolor = category_index[cls]["color"]
 
         # width (w) = xmax - xmin ; height (h) = ymax - ymin

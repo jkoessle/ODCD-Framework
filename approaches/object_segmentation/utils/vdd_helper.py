@@ -350,12 +350,12 @@ def get_first_timestamp_per_trace(log) -> dict:
     timestamps = {}
     try:
         for trace in log._list:
-            trace_id = int(trace._attributes["concept:name"])
+            trace_id = trace._attributes["concept:name"]
             timestamps[trace_id] = trace._list[0]._dict['time:timestamp'].strftime(
                 '%m-%d-%Y')
     except AttributeError:
         for trace in log._list:
-            trace_id = int(trace._attributes["concept:name"])
+            trace_id = trace._attributes["concept:name"]
             timestamps[trace_id] = trace._list[0]._dict['time:timestamp'][0:8]
     return timestamps
 

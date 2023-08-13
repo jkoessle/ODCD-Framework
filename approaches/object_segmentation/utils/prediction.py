@@ -299,7 +299,8 @@ def get_closest_trace_index(drift_moment_date: dt.date,
 
 
 def visualize_prediction(path: str, image: np.ndarray, image_name: str,
-                         bbox_pred: np.ndarray, y_pred: np.ndarray, score: np.ndarray):
+                         bbox_pred: np.ndarray, y_pred: np.ndarray, score: np.ndarray,
+                         encoding: str):
     """Visualize predicted bounding boxes for an image.
 
     Args:
@@ -309,6 +310,7 @@ def visualize_prediction(path: str, image: np.ndarray, image_name: str,
         bbox_pred (list): Predicted bounding box
         y_pred (list): Predicted classes
         score (list): Confidence score
+        encoding (str): Encoding type
     """
     category_index, _ = utils.get_ex_decoder()
 
@@ -321,7 +323,8 @@ def visualize_prediction(path: str, image: np.ndarray, image_name: str,
                                      labels=y_pred,
                                      score=score,
                                      category_index=category_index,
-                                     is_groundtruth=False)
+                                     is_groundtruth=False,
+                                     encoding=encoding)
     plt.imshow(image)
     plt.axis('off')
 
@@ -338,7 +341,7 @@ def predict(image_dir: str, output_path: str, model: tf.keras.Model,
         output_path (str): Output path
         model (tf.keras.Model): Trained model
         encoding_type (str): Name of encoding method
-        n_windows (_type_, optional): Number of windows for WINSIM. Defaults to None.
+        n_windows (int, optional): Number of windows for WINSIM. Defaults to None.
 
     Raises:
         ValueError: Raises ValueError if no valid encoding type is specified
@@ -390,7 +393,8 @@ def predict(image_dir: str, output_path: str, model: tf.keras.Model,
                              image_name=image_name,
                              bbox_pred=bbox_pred,
                              y_pred=y_pred,
-                             score=confidence_scores)
+                             score=confidence_scores,
+                             encoding=encoding_type)
 
         if encoding_type == "winsim":
             bbox_pred = bbox_pred / targetsize \

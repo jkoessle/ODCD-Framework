@@ -16,7 +16,6 @@ from collections import defaultdict
 from tqdm import tqdm
 from typing import List, Tuple, Union
 from math import inf
-from sklearn.metrics import classification_report
 
 from . import config as cfg
 from . import utilities as utils
@@ -50,8 +49,8 @@ def get_evaluation_metrics(y_true: list, y_pred: list,
     matched_assignments = match_labels(assignments, y_true, y_true_label,
                                        y_pred, y_pred_label)
 
-    if len(matched_assignments) > 0:
-        preds, trues = zip(*matched_assignments)
+    if len(assignments) > 0:
+        preds, trues = zip(*assignments)
     else:
         preds = trues = []
 
@@ -174,6 +173,48 @@ def get_average_lag(assignments: List[Tuple[int, int]]):
         return avg_lag / len(assignments)
     except ZeroDivisionError:
         return np.nan
+    
+    
+def get_FP_TP_per_class(y_pred: list, y_true: list) -> dict:
+    """Get true positives, false positives and false negatives per class.
+
+    Args:
+        y_pred (list): Predictions (classes)
+        y_true (list): Groundtruth (classes)
+
+    Returns:
+        dict: Dictionary containing TP, FN and FP per class
+    """
+    measures_per_class = defaultdict(lambda: defaultdict(int))
+    for i, true in enumerate(y_true):
+        if true == y_pred[i]:
+            measures_per_class[true]["TP"] += 1
+        elif pd.isna(y_pred[i]):
+            measures_per_class[true]["FN"] += 1
+        else:
+            measures_per_class[true]["FP"] += 1
+    return dict(measures_per_class)
+
+
+def get_f1_score_per_class(tp: int, fp: int, fn: int) -> Tuple[float, float, float]:
+    """Get F1-score per class.
+
+    Args:
+        tp (int): Number of true positives
+        fp (int): Number of false positives
+        fn (int): Number of false negatives
+
+    Returns:
+        Union[Tuple[float,float,float], Tuple[np.nan, np.nan, np.nan]]: F1-score
+    """
+    try:
+        precision = get_precision(tp, fp)
+        recall = get_recall(tp, (tp+fn))
+
+        f1_score = (2 * precision * recall) / (precision + recall)
+        return f1_score, precision, recall
+    except ZeroDivisionError:
+        return 0, 0, 0
 
 
 def evaluate(data_dir: str, model: tf.keras.Model, threshold=0.5):
@@ -864,12 +905,36 @@ def plot_classification_report(results: pd.DataFrame, path: str, lag_factor: flo
     y_trues_flat = [elem for sub in y_trues for elem in sub]
     y_preds_flat = [elem for sub in y_preds for elem in sub]
 
-    c_r = classification_report(
-        y_trues_flat, y_preds_flat, labels=np.unique(y_trues_flat), output_dict=True)
+        
+    results = get_FP_TP_per_class(y_preds_flat, y_trues_flat)
+    
+    c_r = {}
+    
+    average_precision = 0
+    average_recall = 0
+    average_f1 = 0
+    
+    for k in results.keys():
+        f1, precision, recall = get_f1_score_per_class(tp=results[k]["TP"], 
+                                                       fp=results[k]["FP"], 
+                                                       fn=results[k]["FN"])
+        c_r[k] = {"precision": precision, 
+                  "recall": recall, 
+                  "f1-score": f1}
+        average_precision += precision
+        average_recall += recall
+        average_f1 += f1
+        
+    average_precision = average_precision / len(c_r)
+    average_recall = average_recall / len(c_r)
+    average_f1 = average_f1 / len(c_r)   
+    c_r["average"] = {"precision": average_precision, 
+                      "recall": average_recall, 
+                      "f1-score": average_f1}
 
     # exclude support from clf report with iloc
     clf_r = sns.heatmap(pd.DataFrame(
-        c_r).iloc[:-1, :].T, cmap="YlGn", annot=True, cbar=False)
+        c_r).T, cmap="YlGn", annot=True, cbar=False)
     clf_r_fig = clf_r.get_figure()
     save_path = os.path.join(
         path, f"classification_report_{cfg.EVAL_MODE}_{lag_factor}_lag.png")
