@@ -56,12 +56,21 @@ def get_evaluation_metrics(y_true: list, y_pred: list,
 
     sorted_trues = sorted(
         y_true, key=lambda x: trues.index(x) if x in trues else inf)
+    
+    y_pred_fp = [x for x in y_pred if x not in preds]
+    y_pred_fp = [y_pred_label[y_pred.index(x)] for x in y_pred_fp]
 
     y_pred_label_sorted = [y_pred_label[y_pred.index(x)] for x in preds]
     y_true_label_sorted = [y_true_label[y_true.index(x)] for x in sorted_trues]
 
+    # add FN
     while len(y_pred_label_sorted) < len(y_true_label_sorted):
         y_pred_label_sorted.append(np.NaN)
+    
+    # add FP    
+    for elem in y_pred_fp:
+        y_true_label_sorted.append(np.NaN)
+        y_pred_label_sorted.append(elem)
 
     tp = len(matched_assignments)
     fp = len(y_pred) - tp
@@ -191,8 +200,8 @@ def get_FP_TP_per_class(y_pred: list, y_true: list) -> dict:
             measures_per_class[true]["TP"] += 1
         elif pd.isna(y_pred[i]):
             measures_per_class[true]["FN"] += 1
-        else:
-            measures_per_class[true]["FP"] += 1
+        elif pd.isna(true):
+            measures_per_class[y_pred[i]]["FP"] += 1
     return dict(measures_per_class)
 
 
@@ -924,6 +933,9 @@ def plot_classification_report(results: pd.DataFrame, path: str, lag_factor: flo
         average_precision += precision
         average_recall += recall
         average_f1 += f1
+        
+    # sort dict to align output    
+    c_r = dict(sorted(c_r.items()))
         
     average_precision = average_precision / len(c_r)
     average_recall = average_recall / len(c_r)

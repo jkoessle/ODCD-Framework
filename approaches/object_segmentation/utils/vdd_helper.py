@@ -714,7 +714,7 @@ def get_sudden_bbox_coco(bbox: list, f_bbox: tuple) -> list:
             bbox[2] += 10
             bbox[3] = f_ymax
         else:
-            bbox[0] - 10
+            bbox[0] -= 10
             bbox[1] = f_ymin
             bbox[2] = f_xmax
             bbox[3] = f_ymax
