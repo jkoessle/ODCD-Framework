@@ -1,14 +1,14 @@
 ---------------------------------------------------------------------
 
 EVALUATION REPORT:
-PREDICTION THRESHOLD: 0.4
+PREDICTION THRESHOLD: 0.5
 ---------------------------------------------------------------------
 In total 100 were evaluated, with an average trace length of                5687
 
 ---------------------------------------------------------------------
 
-The average f1 score for all evaluated logs is: 0.3687698412698412.
+The average f1 score for all evaluated logs is: 0.3637698412698412.
 ---------------------------------------------------------------------
 
-The average lag for all evaluated logs is: 71.71333333333332.
+The average lag for all evaluated logs is: 55.97333333333333.
 ---------------------------------------------------------------------

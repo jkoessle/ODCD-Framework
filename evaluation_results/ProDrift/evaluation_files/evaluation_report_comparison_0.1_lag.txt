@@ -1,7 +1,7 @@
 ---------------------------------------------------------------------
 
 EVALUATION REPORT:
-PREDICTION THRESHOLD: 0.4
+PREDICTION THRESHOLD: 0.5
 ---------------------------------------------------------------------
 In total 100 were evaluated, with an average trace length of                5687
 
