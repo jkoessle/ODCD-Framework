@@ -49,8 +49,8 @@ def get_evaluation_metrics(y_true: list, y_pred: list,
     matched_assignments = match_labels(assignments, y_true, y_true_label,
                                        y_pred, y_pred_label)
 
-    if len(assignments) > 0:
-        preds, trues = zip(*assignments)
+    if len(matched_assignments) > 0:
+        preds, trues = zip(*matched_assignments)
     else:
         preds = trues = []
 
