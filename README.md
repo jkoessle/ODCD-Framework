@@ -148,7 +148,7 @@ TRAINED_MODEL_PATH = "Specify path to trained model here"
 ```
 The training is then started with the [train](approaches/object_detection/train.py) script:
 ```sh
-   python train.py --gpu_devices 0,1
+   python train.py --gpu_devices=0,1
 ```
 Here you can set the number of GPUs with the corresponding flag. This example would start the training on GPU 0 and GPU 1. The training produces tensorboard logs which are saved at the specified MODEL_PATH. The tensorboard can be started with:
 ```sh
