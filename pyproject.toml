@@ -22,6 +22,10 @@ scikit-image = "^0.20.0"
 tensorflow-datasets = "4.8.3"
 ruptures = "^1.1.7"
 pulp = "^2.7.0"
+tbparse = "^0.0.7"
+pyarrow = "^12.0.1"
+openpyxl = "^3.1.2"
+
 
 
 [tool.poetry.group.dev.dependencies]

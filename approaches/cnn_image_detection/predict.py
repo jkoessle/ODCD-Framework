@@ -10,7 +10,7 @@ from utils.evaluate import plot_multilabel_confusion_matrix
 def predict(model, out_path):
 
     if cfg.MULTILABEL:
-        test_ds = create_multilabel_dataset(cfg.TEST_DATA_DIR)
+        test_ds = create_multilabel_dataset(cfg.TEST_DATA_DIR, training=False)
         logits = model.predict(test_ds, verbose=2)
         
         labels = cfg.DRIFT_TYPES
@@ -43,6 +43,9 @@ def predict(model, out_path):
 
 
 if __name__ == "__main__":
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
+    
     model = tf.keras.models.load_model(cfg.MODEL_PATH)
     path = os.getcwd()
 

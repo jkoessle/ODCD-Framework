@@ -14,8 +14,8 @@ P_MODE = "train"
 
 
 ##### MODEL CONFIG #####
-IMAGE_SIZE = (150, 150)
-TARGETSIZE = 150
+IMAGE_SIZE = (512, 512)
+TARGETSIZE = 512
 FC_LAYER = [128]
 L_R = 3e-4
 DROPOUT = 0.25
@@ -40,7 +40,7 @@ PREDICT = True
 MULTILABEL = True
 
 # resnet, inception, inc_res, resnet_rs, xception, baseline
-MODEL_SELECTION = "baseline"
+MODEL_SELECTION = "xception"
 # average, flatten
 AGG_LAYER = "average"
 # adam, adadelta, adagrad, sgd, rms_p
@@ -48,9 +48,9 @@ OPTIMIZER = "adam"
 
 
 ##### IMAGE CLASSIFICATION CONFIG #####
-TRAIN_DATA_DIR = ""
-EVAL_DATA_DIR = ""
-TEST_DATA_DIR = ""
-MODEL_PATH = ""
-DEFAULT_OUTPUT_DIR = "approaches\\cnn_image_detection\\output"
-TENSORBOARD_DIR = "approaches\\cnn_image_detection\\tensorboard_logs"
+TRAIN_DATA_DIR = "Specify training data dir"
+EVAL_DATA_DIR = "Specify validation data dir"
+TEST_DATA_DIR = "Specify test data dir"
+MODEL_PATH = "Specify model dir"
+DEFAULT_OUTPUT_DIR = "Specify output dir"
+TENSORBOARD_DIR = "Specify logging dir"

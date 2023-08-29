@@ -43,10 +43,11 @@ def plot_classification_report(y_true, y_pred, labels_idx, labels, path):
 
     # exclude support from clf report with iloc
     clf_r = sns.heatmap(pd.DataFrame(
-        c_r).iloc[:-1, :].T, cmap="YlGn", annot=True)
+        c_r).iloc[:-1, :].T, cmap="YlGn", annot=True, cbar=False)
     clf_r_fig = clf_r.get_figure()
     save_path = os.path.join(path, "classification_report.png")
-    clf_r_fig.savefig(save_path)
+    clf_r_fig.tight_layout()
+    clf_r_fig.savefig(save_path, dpi=300)
     print(f"Classification report is saved at: {save_path}")
 
 
@@ -61,30 +62,31 @@ def plot_confusion_matrix(y_true, y_pred, labels_idx, labels, path):
     plt.xticks(rotation=45)
     disp.plot(ax=ax, cmap="YlGn")
     save_path = os.path.join(path, "confusion_matrix.png")
-    plt.savefig(save_path)
+    plt.savefig(save_path, dpi=300)
     print(f"Confusion matrix is saved at: {save_path}")
-    
+
 
 def plot_multilabel_confusion_matrix(y_true, y_pred, labels_idx, labels, path):
-    
+
     # create multilabel confusion matrix and display
     m_cm = multilabel_confusion_matrix(y_true, y_pred, labels=labels_idx)
     n_subplots = cols = len(labels)
-    
+
     # get rows and columns
     rows = n_subplots // cols
     if n_subplots % cols != 0:
         rows += 1
-    pos = range(1,n_subplots + 1)
-    
+    pos = range(1, n_subplots + 1)
+
     # render plot dynamically
     fig = plt.figure()
     for i in range(n_subplots):
-        disp = ConfusionMatrixDisplay(m_cm[i], display_labels=labels)
+        disp = ConfusionMatrixDisplay(m_cm[i])
         ax = fig.add_subplot(rows, cols, pos[i])
-        ax.set_title(f"Confusion Matrix for Class '{labels[i]}'")
+        ax.set_title(f"Class '{labels[i]}'")
         disp.plot(cmap="YlGn", ax=ax, colorbar=False)
     fig.tight_layout()
     save_path = os.path.join(path, "multilabel_confusion_matrix.png")
-    plt.savefig(save_path, bbox_inches='tight')
+    plt.savefig(save_path, bbox_inches='tight', dpi=300)
     print(f"Confusion matrix is saved at: {save_path}")
+    plt.close()

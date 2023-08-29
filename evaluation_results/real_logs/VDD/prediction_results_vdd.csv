@@ -1,0 +1,5 @@
+;Detected Changepoints;Detected Drift Types;Prediction Confidence
+BPI_Challenge_2011;nan;nan;nan
+BPI_Challenge_2012;[('173688', '213960')];['recurring'];[0.5619]
+italian_help_desk;[];[];[]
+sepsis;[];[];[]
