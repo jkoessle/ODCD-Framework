@@ -3,10 +3,10 @@ DEBUG = True
 OBJECT_DETECTION = True
 ANNOTATIONS_ONLY = False
 AUTOMATE_TFR_SCRIPT = True
-VDD_PREPROCESSING = True
+VDD_PREPROCESSING = False
 KEEP_AXIS = False
 WINDOWS_SYSTEM = True
-MINE_CONSTRAINTS = False
+MINE_CONSTRAINTS = True
 CONSTRAINTS_DIR = ""
 
 if VDD_PREPROCESSING:
@@ -26,7 +26,6 @@ OUTPUT_PREFIX = "Specify output prefix for TFR file"
 DRIFT_TYPES = ["sudden", "gradual", "incremental", "recurring"]
 DISTANCE_MEASURE = "cos" # can be one of ["fro","nuc","inf","l2","cos","earth"]
 COLOR = "color"
-P_MODE = "train"
 RESIZE_SUDDEN_BBOX = True
 RESIZE_VALUE = 5
 
@@ -66,8 +65,8 @@ LR_WARMUP_STEPS = 0.1 * TRAIN_STEPS
 BEST_CP_METRIC = "AP"
 BEST_CP_METRIC_COMP = "higher"
 
-OPTIMIZER_TYPE = "adam"
-LR_TYPE = "cosine"
+OPTIMIZER_TYPE = "sgd"
+LR_TYPE = "stepwise"
 
 SGD_MOMENTUM = 0.9
 SGD_CLIPNORM = 10.0

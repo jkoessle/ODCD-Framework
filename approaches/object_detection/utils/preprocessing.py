@@ -18,7 +18,7 @@ from typing import Tuple
 from tqdm import tqdm
 
 
-def winsim_pipeline(n_windows=100, p_mode="train"):
+def winsim_pipeline(n_windows=100):
     """Main function for preprocessing the event logs for the WINSIM approach. 
 
     Args:

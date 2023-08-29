@@ -46,6 +46,6 @@ if __name__ == "__main__":
         pp.vdd_pipeline()
     else:
         print("Starting WINSIM pipeline")
-        pp.winsim_pipeline(n_windows=cfg.N_WINDOWS, p_mode=cfg.P_MODE)
+        pp.winsim_pipeline(n_windows=cfg.N_WINDOWS)
     
     

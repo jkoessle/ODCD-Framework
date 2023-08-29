@@ -62,7 +62,7 @@ All available pretrained models are listed in the table below. The corresponding
 | winsim_spine_190 | https://data.dws.informatik.uni-mannheim.de/odcd-framework/models/object_detection/models/winsim_spine_190.zip |
 
 
-For this purpose, use the [predict](approaches\object_detection\predict.py) script. This script can either be used in an E2E method or applied directly to preprocessed images.
+For this purpose, use the [predict](approaches/object_detection/predict.py) script. This script can either be used in an E2E method or applied directly to preprocessed images.
 ```sh
    cd approaches
    cd object_detection
@@ -88,7 +88,7 @@ The script outputs not only the visual detection of the drift types, but also a 
 ### E2E Platform
 With the E2E platform it is possible to preprocess labeled event logs and train and validate new models with user defined parameters. For this purpose, you need to adjust the configuration to your needs.
 #### Configuration Preprocessing
-The configuration file can be found [here](approaches\object_detection\utils\config.py). For preprocessing the following variables must be set or adjusted:
+The configuration file can be found [here](approaches/object_detection/utils/config.py). All configuration variables are explained in detail [here](https://github.com/jkoessle/ODCD-Framework/wiki/Configuration-Variables). For preprocessing the following variables must be set or adjusted:
 ```sh
 ##### GENERAL CONFIG #####
 DEBUG = True
@@ -120,7 +120,7 @@ SLI_BY = 50
 CP_ALL = True
 ```
 
-The preprocessing is then started with the [run_detection_pipeline](approaches\object_detection\run_detection_pipeline.py) script:
+The preprocessing is then started with the [run_detection_pipeline](approaches/object_detection/run_detection_pipeline.py) script:
 ```sh
    cd approaches
    cd object_detection
@@ -130,7 +130,7 @@ The preprocessing is then started with the [run_detection_pipeline](approaches\o
 ```
 If AUTOMATE_TFR_SCRIPT is True, this will output a TFR file that can be used for training
 #### Configuration Training
-For training the model, there are also important settings in [config](approaches\object_detection\utils\config.py) that must be adapted to your use:
+For training the model, there are also important settings in [config](approaches/object_detection/utils/config.py) that must be adapted to your use:
 ```sh
 ##### MODEL CONFIG #####
 FACTOR = 500
@@ -152,7 +152,7 @@ MODEL_PATH = "Specify directory where to log model training here"
 DEFAULT_OUTPUT_DIR = "Specify directory where to save output here"
 TRAINED_MODEL_PATH = "Specify path to trained model here"
 ```
-The training is then started with the [train](approaches\object_detection\train.py) script:
+The training is then started with the [train](approaches/object_detection/train.py) script:
 ```sh
    python train.py --gpu_devices 0,1
 ```
@@ -162,7 +162,7 @@ Here you can set the number of GPUs with the corresponding flag. This example wo
 ```
 
 #### Configuration Evaluation
-This framework also includes a separate evaluation of the trained models. For this purpose, the following parameter in the [config](approaches\object_detection\utils\config.py) file need to be set:
+This framework also includes a separate evaluation of the trained models. For this purpose, the following parameter in the [config](approaches/object_detection/utils/config.py) file need to be set:
 ```sh
 TEST_IMAGE_DATA_DIR = "Specify directory where evaluation images are saved here"
 
@@ -170,7 +170,7 @@ TEST_IMAGE_DATA_DIR = "Specify directory where evaluation images are saved here"
 RELATIVE_LAG = [0.01, 0.025, 0.05, 0.1, 0.15, 0.2]
 EVAL_MODE = "general"
 ```
-The evaluation is then started with the [evaluate](approaches\object_detection\evaluate.py) script:
+The evaluation is then started with the [evaluate](approaches/object_detection/evaluate.py) script:
 ```sh
    python evaluate.py
 ```
