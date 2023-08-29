@@ -1,0 +1,5 @@
+;Detected Changepoints;Detected Drift Types;Prediction Confidence
+BPI_Challenge_2012;[('207113', '212908')];['gradual'];[0.7128]
+BPI_Challenge_2011;[];[];[]
+italian_help_desk;[('Case 1530', 'Case 2276'), ('Case 864', 'Case 832')];['recurring', 'incremental'];[0.8455 0.7269]
+sepsis;[];[];[]

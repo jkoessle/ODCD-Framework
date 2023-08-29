@@ -127,3 +127,26 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Event logs (for now)
+logs/*
+*.xes
+*.csv
+
+# Intermediate results
+*png
+*jpg
+annotations.json
+*.tfrec
+*.tfrecord
+*.xlsx
+*.json
+
+# misc
+test.py
+
+# models
+*.h5
+
+# debugging
+launch.json
