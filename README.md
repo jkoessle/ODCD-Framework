@@ -130,7 +130,7 @@ The preprocessing is then started with the [run_detection_pipeline](approaches/o
 ```sh
    python run_detection_pipeline.py
 ```
-If AUTOMATE_TFR_SCRIPT is True, this will output a TFR file that can be used for training
+If AUTOMATE_TFR_SCRIPT is True, this will output a TFR file that can be used for training.
 #### Configuration Training
 For training the model, there are also important settings in [config](approaches/object_detection/utils/config.py) that must be adapted to your use:
 ```sh
@@ -189,7 +189,7 @@ The real event logs used during the evaluation can be found here:
 
 
 ### Evaluation
-Results from the evaluation can be found [here](evaluation_results/). The detailed results for VDD are available [here](https://data.dws.informatik.uni-mannheim.de/odcd-framework/evaluation_results/)
+Results from the evaluation can be found [here](evaluation_results/). The detailed results for VDD are available [here](https://data.dws.informatik.uni-mannheim.de/odcd-framework/evaluation_results/).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
