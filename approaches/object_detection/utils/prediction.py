@@ -330,6 +330,7 @@ def visualize_prediction(path: str, image: np.ndarray, image_name: str,
 
     plt.savefig(os.path.join(path, f"{image_name}.png"),
                 bbox_inches="tight")
+    plt.close()
 
 
 def predict(image_dir: str, output_path: str, model: tf.keras.Model,
@@ -351,6 +352,11 @@ def predict(image_dir: str, output_path: str, model: tf.keras.Model,
     threshold = 0.5
     model_fn = model.signatures['serving_default']
     pred_results = {}
+    
+    if os.path.isfile(os.path.join(image_dir,"log_matching.csv")):
+            log_matching = eval.get_log_matching(image_dir)
+    else:
+        log_matching = None
 
     if encoding_type == "winsim":
         window_info = eval.get_window_info(image_dir)
@@ -399,20 +405,39 @@ def predict(image_dir: str, output_path: str, model: tf.keras.Model,
         if encoding_type == "winsim":
             bbox_pred = bbox_pred / targetsize \
                 * n_windows
-            log_window_info = window_info[image_name]
+            if log_matching is not None:
+                log_name = log_matching.loc[log_matching["image_id"] == 
+                                            int(image_name), "log_name"].iloc[0]
+                log_window_info = window_info[log_name]
+            else:
+                log_window_info = window_info[image_name]
             pred_change_points = get_changepoints_trace_idx_winsim(
                 bbox_pred, y_pred_category, log_window_info)
         elif encoding_type == "vdd":
-            min_date, max_date = date_info[image_name]
-            pred_change_points = get_changepoints_trace_idx_vdd(bboxes=bbox_pred,
-                                                                y_pred=y_pred_category,
-                                                                timestamps_per_trace=timestamps_per_trace[
-                                                                    image_name],
-                                                                min_date=eval.str_2_date(
-                                                                    min_date),
-                                                                max_date=eval.str_2_date(
-                                                                    max_date),
-                                                                targetsize=targetsize)
+            if log_matching is not None:
+                log_name = log_matching.loc[log_matching["image_id"] == 
+                                            int(image_name), "log_name"].iloc[0]
+                min_date, max_date = date_info[log_name]
+                pred_change_points = get_changepoints_trace_idx_vdd(bboxes=bbox_pred,
+                                                                    y_pred=y_pred_category,
+                                                                    timestamps_per_trace=timestamps_per_trace[
+                                                                        log_name],
+                                                                    min_date=eval.str_2_date(
+                                                                        min_date),
+                                                                    max_date=eval.str_2_date(
+                                                                        max_date),
+                                                                    targetsize=targetsize)
+            else:
+                min_date, max_date = date_info[image_name]
+                pred_change_points = get_changepoints_trace_idx_vdd(bboxes=bbox_pred,
+                                                                    y_pred=y_pred_category,
+                                                                    timestamps_per_trace=timestamps_per_trace[
+                                                                        image_name],
+                                                                    min_date=eval.str_2_date(
+                                                                        min_date),
+                                                                    max_date=eval.str_2_date(
+                                                                        max_date),
+                                                                    targetsize=targetsize)
         pred_results[image_name] = \
             {"Detected Changepoints": pred_change_points,
                 "Detected Drift Types": y_pred_category,

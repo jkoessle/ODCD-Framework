@@ -14,9 +14,9 @@ For full functionality, this framework requires the following software:
 * Python 3.9
 * TensorFlow Model Garden ([clone here](https://github.com/tensorflow/models))
 * MINERful ([clone here](https://github.com/cdc08x/MINERful)) -> Requires JRE 7+
-* [poetry](https://python-poetry.org/) -> optional, for packaging/dependency management
+* [poetry](https://python-poetry.org/) -> for packaging/dependency management, see their website for installation and usage
 
-<b>Note:</b> If you want to use only the pretrained models, the package dependencies in the poetry/requirements file are sufficient.
+<b>Note:</b> If you want to use only the pretrained models, the package dependencies in the poetry file are sufficient.
 
 ### Installation
 
@@ -28,23 +28,12 @@ For full functionality, this framework requires the following software:
    ```sh
    cd ODCD-Framework
    ```
-3. Install dependencies (one option is sufficient).
-   
-   With poetry:
+3. Install dependencies with poetry. This creates a virtual environment with the corresponding dependencies.
    ```sh
    poetry install
    ```
-   With pip: 
-   ```sh
-   pip install -r requirements.txt
-   ```
-   With conda environment:
-   ```sh
-   conda create --name odcd --file requirements.txt
-   ```
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
 
 <!-- USAGE EXAMPLES -->
 ## Usage
@@ -65,9 +54,12 @@ All available pretrained models are listed in the table below. The corresponding
 
 
 For this purpose, use the [predict](approaches/object_detection/predict.py) script. This script can either be used in an E2E method or applied directly to preprocessed images.
+Always start a poetry shell, if you use the terminal:
 ```sh
-   cd approaches
-   cd object_detection
+   poetry shell
+```
+```sh
+   cd approaches/object_detection
 ```
 Example for WINSIM with preprocessing:
 ```sh
