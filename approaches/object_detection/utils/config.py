@@ -17,13 +17,14 @@ else:
 
 ##### DATA CONFIG #####
 N_WINDOWS = 200
-DEFAULT_DATA_DIR = "data"
-DEFAULT_LOG_DIR = ""
-TENSORFLOW_MODELS_DIR = "models"
-MINERFUL_SCRIPTS_DIR = "MINERful"
-OUTPUT_PREFIX = ""
+DEFAULT_DATA_DIR = "Specify default data output directory"
+DEFAULT_LOG_DIR = "Specify event log directory"
+TFR_RECORDS_DIR = "Specify directory where to save TFR files here"
+TENSORFLOW_MODELS_DIR = "Specify TensorFlow model garden directory"
+MINERFUL_SCRIPTS_DIR = "Specify MINERful directory"
+OUTPUT_PREFIX = "Specify output prefix for TFR file"
 DRIFT_TYPES = ["sudden", "gradual", "incremental", "recurring"]
-DISTANCE_MEASURE = "cos"
+DISTANCE_MEASURE = "cos" # can be one of ["fro","nuc","inf","l2","cos","earth"]
 COLOR = "color"
 P_MODE = "train"
 RESIZE_SUDDEN_BBOX = True
@@ -84,6 +85,7 @@ STEPWISE_VALUES = [0.32 * TRAIN_BATCH_SIZE / 256.0,
 # Possible Models:
 # retinanet_resnetfpn_coco, retinanet_spinenet_coco
 MODEL_SELECTION = "retinanet_spinenet_coco"
+# ID can be 143 or 190
 SPINENET_ID = "143"
 
 
@@ -91,7 +93,6 @@ SPINENET_ID = "143"
 TRAIN_DATA_DIR = "Specify path to TFR training dataset here"
 EVAL_DATA_DIR = "Specify path to TFR validation dataset here"
 MODEL_PATH = "Specify directory where to log model training here"
-TFR_RECORDS_DIR = "Specify directory where to save TFR files here"
 DEFAULT_OUTPUT_DIR = "Specify directory where to save output here"
 TRAINED_MODEL_PATH = "Specify path to trained model here"
 
