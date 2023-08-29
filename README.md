@@ -1,3 +1,5 @@
+<a name="readme-top"></a>
+
 # ODCD Framework
 This framework enables the detection and localization of concept drift in process mining from event logs using state-of-the-art deep learning models for object detection. The framework provides an end-to-end platform for preprocessing event logs, training new models, and evaluating their performance. Within the framework, already trained models are also available that can be directly applied to event logs. 
 
@@ -185,6 +187,9 @@ The real event logs used during the evaluation can be found here:
 - [Italian help desk](https://doi.org/10.4121/uuid:0c60edf1-6f83-4e75-9367-4c63b3e9d5bb)
 - [Sepsis](https://doi.org/10.4121/uuid:915d2bfb-7e84-49ad-a286-dc35f063a460)
 
+
+### Evaluation
+Results from the evaluation can be found [here](evaluation_results/). The detailed results for VDD are available [here](https://data.dws.informatik.uni-mannheim.de/odcd-framework/evaluation_results/)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
