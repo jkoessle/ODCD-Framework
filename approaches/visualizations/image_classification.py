@@ -55,7 +55,7 @@ def plot_figures(tb_logs: pd.DataFrame, output_dir: str):
     loss_data = get_loss_data(tb_logs)
     sns.lineplot(data=loss_data, x="step", y="loss",
                  hue=loss_data["model"]).set_title("loss")
-    plt.savefig(os.path.join(output_dir, "model_comparison.png"))
+    plt.savefig(os.path.join(output_dir, "model_comparison.png"), dpi=300)
 
 
 def get_binary_accuracy_data_per_run(tb_logs: pd.DataFrame) -> pd.DataFrame:

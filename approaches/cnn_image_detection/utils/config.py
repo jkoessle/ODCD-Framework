@@ -48,9 +48,9 @@ OPTIMIZER = "adam"
 
 
 ##### IMAGE CLASSIFICATION CONFIG #####
-TRAIN_DATA_DIR = ""
-EVAL_DATA_DIR = ""
-TEST_DATA_DIR = ""
-MODEL_PATH = ""
-DEFAULT_OUTPUT_DIR = "approaches\\cnn_image_detection\\output"
-TENSORBOARD_DIR = "approaches\\cnn_image_detection\\tensorboard_logs"
+TRAIN_DATA_DIR = "Specify training data dir"
+EVAL_DATA_DIR = "Specify validation data dir"
+TEST_DATA_DIR = "Specify test data dir"
+MODEL_PATH = "Specify model dir"
+DEFAULT_OUTPUT_DIR = "Specify output dir"
+TENSORBOARD_DIR = "Specify logging dir"

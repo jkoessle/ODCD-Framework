@@ -511,6 +511,10 @@ def get_changepoints_trace_idx_winsim(bboxes: list, y_pred: list,
                 # changepoint is equal to the date of the first trace in the middle
                 # window of bbox
                 change_point = get_sudden_changepoint_winsim(round(bbox[1]))
+                if change_point > cfg.N_WINDOWS:
+                    change_point = cfg.N_WINDOWS
+                elif change_point < 1:
+                    change_point = 1
                 change_point_trace_id = (int(window_info[str(change_point)][0]),
                                          int(window_info[str(change_point)][0]))
             else:
@@ -951,7 +955,7 @@ def plot_classification_report(results: pd.DataFrame, path: str, lag_factor: flo
     save_path = os.path.join(
         path, f"classification_report_{cfg.EVAL_MODE}_{lag_factor}_lag.png")
     clf_r_fig.tight_layout()
-    clf_r_fig.savefig(save_path)
+    clf_r_fig.savefig(save_path, dpi=300)
     print(f"Classification report is saved at: {save_path}")
     plt.close(clf_r_fig)
 

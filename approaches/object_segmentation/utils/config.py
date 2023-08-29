@@ -4,7 +4,7 @@ OBJECT_DETECTION = True
 ANNOTATIONS_ONLY = False
 AUTOMATE_TFR_SCRIPT = True
 VDD_PREPROCESSING = True
-KEEP_AXIS = True
+KEEP_AXIS = False
 WINDOWS_SYSTEM = True
 MINE_CONSTRAINTS = False
 CONSTRAINTS_DIR = ""
@@ -29,11 +29,16 @@ P_MODE = "train"
 RESIZE_SUDDEN_BBOX = True
 RESIZE_VALUE = 5
 
+##### VDD CONFIG #####
+SUB_L = 100
+SLI_BY = 50
+CP_ALL = True
+
 
 ##### MODEL CONFIG #####
 FACTOR = 500
-TRAIN_EXAMPLES = 1000
-EVAL_EXAMPLES = 500
+TRAIN_EXAMPLES = 9978
+EVAL_EXAMPLES = 2495
 TRAIN_BATCH_SIZE = 64
 EVAL_BATCH_SIZE = 32
 STEPS_PER_LOOP = TRAIN_EXAMPLES // TRAIN_BATCH_SIZE
@@ -42,7 +47,7 @@ VAL_STEPS = EVAL_EXAMPLES // EVAL_BATCH_SIZE
 SUMMARY_INTERVAL = STEPS_PER_LOOP
 CP_INTERVAL = STEPS_PER_LOOP
 VAL_INTERVAL = STEPS_PER_LOOP
-EVAL_THRESHOLD = 0.75
+EVAL_THRESHOLD = 0.5
 
 # must be equally sized!
 IMAGE_SIZE = (256, 256)
@@ -85,19 +90,12 @@ SPINENET_ID = "143"
 ##### OBJECT DETECTION CONFIG #####
 TRAIN_DATA_DIR = "Specify path to TFR training dataset here"
 EVAL_DATA_DIR = "Specify path to TFR validation dataset here"
-# TEST_DATA_DIR = ""
 MODEL_PATH = "Specify directory where to log model training here"
 TFR_RECORDS_DIR = "Specify directory where to save TFR files here"
 DEFAULT_OUTPUT_DIR = "Specify directory where to save output here"
 TRAINED_MODEL_PATH = "Specify path to trained model here"
 
 TEST_IMAGE_DATA_DIR = "Specify directory where evaluation images are saved here"
-
-
-##### VDD CONFIG #####
-SUB_L = 100
-SLI_BY = 50
-CP_ALL = True
 
 
 ##### EVALUATION CONFIG #####
